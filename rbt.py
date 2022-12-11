@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Union
 
+import jax
 import jax.numpy as jnp
 
 from joint import Joint, Free
@@ -79,27 +80,49 @@ class RigidBodyTree:
             v_idx += body.joint.nf
 
 
-def zero_q(model: Union[Joint, Body, RigidBodyTree]) -> jnp.ndarray:
-    """Get a zero configuration for a model."""
-    if isinstance(model, Free):
+def make_q(model: Union[Joint, Body, RigidBodyTree],
+           prng_key = None) -> jnp.ndarray:
+    """Get a configuration vector for a model. If a prng_key is provided, the
+    configuration will be random."""
+    # Free joints are special because the orientation component is a unit
+    # quaternion. The joint configuration is [qx, qy, qz, qw, tx, ty, tz]
+    if isinstance(model, Free) and prng_key is None:
         return jnp.array([1, 0, 0, 0, 0, 0, 0])
+    elif isinstance(model, Free) and prng_key:
+        q = jax.random.normal(prng_key, (7,))
+        q[:4] /= jnp.linalg.norm(q[:4])
+        return q
+    # Other joint's can be handled generically using the joint's nq field
     elif isinstance(model, Joint):
-        return jnp.zeros(model.nq)
+        return jnp.zeros(model.nq) if prng_key is None else jax.random.normal(prng_key, (model.nq,))
     elif isinstance(model, Body):
-        return zero_q(model.joint)
+        return make_q(model.joint, prng_key)
     elif isinstance(model, RigidBodyTree):
-        return jnp.concatenate([zero_q(b.joint) for b in model.bodies])
+        # Get the total number of configuration variables
+        nq = sum(b.joint.nq for b in model.bodies)
+        # Create a configuration vector
+        q = jnp.zeros(nq) if prng_key is None else jax.random.normal(prng_key, (nq,))
+        # Because free joints are special, we need to handle them separately.
+        for b in model.bodies:
+            if isinstance(b.joint, Free):
+                q[b.q_idx:b.q_idx + b.joint.nq] = make_q(b.joint, prng_key)
+        return q
     else:
         raise ValueError(f"Unknown model type: {type(model)}")
 
-def zero_v(model: Union[Joint, Body, RigidBodyTree]) -> jnp.ndarray:
-    """Get a zero velocity for a model."""
+def make_v(model: Union[Joint, Body, RigidBodyTree],
+           prng_key = None) -> jnp.ndarray:
+    """Get a velocity vector for a model. If a prng_key is provided, the
+    velocity will be random."""
     if isinstance(model, Joint):
-        return jnp.zeros(model.nf)
+        return jnp.zeros(model.nf) if prng_key is None else jax.random.normal(prng_key, (model.nf,))
     elif isinstance(model, Body):
-        return zero_v(model.joint)
+        return make_v(model.joint, prng_key)
     elif isinstance(model, RigidBodyTree):
-        return jnp.concatenate([zero_v(b.joint) for b in model.bodies])
+        # Get the total number of velocity variables
+        nf = sum(b.joint.nf for b in model.bodies)
+        # Create a velocity vector
+        return jnp.zeros(nf) if prng_key is None else jax.random.normal(prng_key, (nf,))
     else:
         raise ValueError(f"Unknown model type: {type(model)}")
 
@@ -109,8 +132,8 @@ def seg_q(body: Body, q: jnp.ndarray) -> jnp.ndarray:
 
 def seg_v(body: Body, v: jnp.ndarray) -> jnp.ndarray:
     """Get the segment of v corresponding to the body's joint"""
-    return v[body.idx:body.idx + body.joint.nf]
+    return v[body.v_idx:body.v_idx + body.joint.nf]
 
 # Actuators correspond to the degrees of freedom of the robot
-zero_u = zero_a = zero_v
+make_u = make_a = make_v
 seg_u = seg_a = seg_v

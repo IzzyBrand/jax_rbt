@@ -1,38 +1,75 @@
+import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
-from joint import Revolute, zero_q
+from inertia import inertia_of_cylinder
+from joint import Revolute, Fixed
 from transforms import SpatialTransform, x_rotation
-from rbt import RigidBodyTree, Body
+from rbt import RigidBodyTree, Body, make_q, make_v, make_a
 from kinematics import fk
+
+def make_simple_arm(num_joints: int,
+                    joint_angle: float = jnp.pi / 6,
+                    link_length: float = 0.1,
+                    body_mass: float = 1.0):
+    """Make a simple arm with num_joints revolute joints"""
+    # Create the transform from each joint to the next: a translation along z
+    # and a rotation about x
+    t_z = jnp.array([0, 0, link_length])
+    T_parent_to_child = SpatialTransform(x_rotation(joint_angle), t_z)
+
+    # Create the revolute joint used by all bodies
+    joint = Revolute(T_parent_to_child)
+
+    # The center of mass of each body is between the two joints
+    com = 0.5 * t_z
+
+    # Define the inertia assuming each body is a uniform density cylinder, twice
+    # as long as it is wide
+    inertia = inertia_of_cylinder(body_mass, 0.25 * link_length, link_length)
+
+    # Create the base body. The base joint is fixed, so it has no parent, and
+    # does not require inertial properties.
+    bodies = [Body(0,        # id
+                   Fixed(),  # joint
+                   None,     # parent_id
+                   "base")]  # name
+
+    # Create the rest of the bodies
+    for i in range(1, num_joints):
+        bodies.append(Body(i,            # id
+                           joint,        # joint
+                           i - 1,        # parent_id
+                           f"body_{i}",  # name
+                           inertia,      # inertia
+                           body_mass,    # mass
+                           com))         # com
+
+    # Create the tree
+    return RigidBodyTree(bodies)
 
 
 if __name__ == "__main__":
 
-    t_z = jnp.array([0, 0, 0.1]);
-    theta = jnp.pi / 6
-    # T_body_i_joint is offset by t_z rotated around x by theta
-    T_in = SpatialTransform(x_rotation(theta), t_z)
-    # Create the revolute joint
-    joint = Revolute(T_in)
+    rbt = make_simple_arm(5)
 
-    # Create the bodies
-    bodies = [Body(0, Fixed(), None, "base")]
-    for i in range(1, 7):
-        bodies.append(Body(i, joint, i - 1, f"body_{i}"))
+    prng_key = jax.random.PRNGKey(0)
 
-    # Create the tree
-    rbt = RigidBodyTree(bodies)
+    # Do forward kinematics on a random configuration
+    q0 = make_q(rbt, prng_key)
+    v0 = make_v(rbt, prng_key)
+    a0 = make_a(rbt, prng_key)
+    print("q0:", q0)
+    print("v0:", v0)
+    print("a0:", a0)
 
-    # Do forward kinematics
-    q0 = zero_q(rbt)
-    v0 = zero_v(rbt)
-    a0 = zero_a(rbt)
-    poses, velocities, accelerations = fk(rbt, q0, jnp.zeros_like(q0), jnp.zeros_like(q0))
+    poses, velocities, accelerations = fk(rbt, q0, v0, a0)
 
-    # Plot the positions of each body
-    # for pose in poses:
-    #     plt.scatter(pose.t[1], pose.t[2], s=100)
-    # plt.show()
+    for i, (p, v, a) in enumerate(zip(poses, velocities, accelerations)):
+        print(f"Body {i}")
+        print("R:\n", p.R)
+        print("t:\n", p.t)
+        print("v:\n", v)
+        print("a:\n", a)
 
 

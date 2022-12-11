@@ -30,6 +30,8 @@ class SpatialMotionVector:
         else:
             return super().cross(other)
 
+    def __str__(self):
+        return str(self.vec)
 
 class SpatialForceVector:
     def __init__(self, vec=None):
@@ -42,6 +44,8 @@ class SpatialForceVector:
         else:
             raise NotImplementedError
 
+    def __str__(self):
+        return str(self.vec)
 
 class SpatialTransform:
     """A spatial transform is a 6x6 matrix that transforms spatial vectors.
