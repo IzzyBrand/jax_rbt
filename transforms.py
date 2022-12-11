@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 
-from util import skew, deskew, normalize
+from misc_math import skew, deskew, normalize
 
 ###############################################################################
 # Spatial Algebra

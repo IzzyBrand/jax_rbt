@@ -15,7 +15,6 @@ def deskew(m):
     """Convert a skew-symmetric matrix to a vector."""
     return jnp.array([m[2, 1], m[0, 2], m[1, 0]])
 
-
 def normalize(v):
     """Normalize a vector."""
     return v / jnp.linalg.norm(v)

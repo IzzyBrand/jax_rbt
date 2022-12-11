@@ -1,28 +1,44 @@
 import jax.numpy as jnp
 
+from inertia import SpatialInertiaTensor
 from joint import Joint, Free, Revolute
 from rbt import RigidBodyTree, Body
-from util import skew
+from transforms import (
+    SpatialMotionVector,
+    SpatialForceVector,
+)
+from misc_math import skew
 
 
-def spatial_inertia(body: Body) -> jnp.ndarray:
-    """Get the spatial inertia matrix of a body at the body frame.
-    Featherstone (2.62), (2.63)"""
-    I = body.inertia
-    m = body.mass
+def compute_force_on_body(body: Body,
+                          v: SpatialMotionVector,
+                          a: SpatialMotionVector) -> SpatialForceVector:
+    """Compute the force on a body given its velocity and acceleration."""
+    # Get the spatial inertia tensor of the body at the CoM
+    spatial_inertia = SpatialInertiaTensor(body.inertia, body.mass)
+    # Convert it to the body frame
+    I = spatial_inertia.offset(body.com)
+    # Compute the force on the body (Featherstone 5.9)
+    # TODO: add multiplication functions to SpatialInertiaTensor
+    return SpatialForceVector(I @ a.vec + v.skew() @ I @ v.vec)
 
-    if (body.com == 0).all():
-        # If the center of mass is at the body origin, then the spatial inertia
-        # has a simpler form.
-        return jnp.block([[I, jnp.zeros((3, 3))],
-                          [jnp.zeros((3, 3)), m * jnp.eye(3)]])
-    else:
-        # If the center of mass is not at the body origin, then we have to
-        # consider the offset.
-        c_cross = skew(body.com)
-        return jnp.block([
-            [I + m * c_cross @ c_cross.T, m * c_cross],
-            [m * c_cross.T, m * jnp.eye(3)]])
+
+def compute_joint_forces(tree: RigidBodyTree,
+                         net_forces: list[SpatialForceVector],
+                         external_forces: list[SpatialForceVector]):
+    """Compute the force transmitted across each joint."""
+
+    joint_forces = [None] * tree.n_bodies
+
+    for body in reversed(tree.bodies):
+        i = body.idx
+        # Sum the forces that this body is transmitting to its children
+        child_joint_forces = sum(joint_forces[child.idx] for child in body.children)
+        # Compute the force transmitted from the parent to this body
+        # Featherstone (5.10)
+        joint_forces[i] = net_forces[i] - external_forces[i] + child_joint_forces
+
+    return joint_forces
 
 
 def joint_wrench(joint: Joint, u: jnp.ndarray) -> jnp.ndarray:

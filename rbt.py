@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 import jax.numpy as jnp
 
@@ -79,3 +79,38 @@ class RigidBodyTree:
             v_idx += body.joint.nf
 
 
+def zero_q(model: Union[Joint, Body, RigidBodyTree]) -> jnp.ndarray:
+    """Get a zero configuration for a model."""
+    if isinstance(model, Free):
+        return jnp.array([1, 0, 0, 0, 0, 0, 0])
+    elif isinstance(model, Joint):
+        return jnp.zeros(model.nq)
+    elif isinstance(model, Body):
+        return zero_q(model.joint)
+    elif isinstance(model, RigidBodyTree):
+        return jnp.concatenate([zero_q(b.joint) for b in model.bodies])
+    else:
+        raise ValueError(f"Unknown model type: {type(model)}")
+
+def zero_v(model: Union[Joint, Body, RigidBodyTree]) -> jnp.ndarray:
+    """Get a zero velocity for a model."""
+    if isinstance(model, Joint):
+        return jnp.zeros(model.nf)
+    elif isinstance(model, Body):
+        return zero_v(model.joint)
+    elif isinstance(model, RigidBodyTree):
+        return jnp.concatenate([zero_v(b.joint) for b in model.bodies])
+    else:
+        raise ValueError(f"Unknown model type: {type(model)}")
+
+def seg_q(body: Body, q: jnp.ndarray) -> jnp.ndarray:
+    """Get the segment of q corresponding to the body's joint"""
+    return q[body.q_idx:body.q_idx + body.joint.nq]
+
+def seg_v(body: Body, v: jnp.ndarray) -> jnp.ndarray:
+    """Get the segment of v corresponding to the body's joint"""
+    return v[body.idx:body.idx + body.joint.nf]
+
+# Actuators correspond to the degrees of freedom of the robot
+zero_u = zero_a = zero_v
+seg_u = seg_a = seg_v
