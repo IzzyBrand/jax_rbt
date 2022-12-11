@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
+from dynamics import id
 from inertia import inertia_of_cylinder
 from joint import Revolute, Fixed
 from transforms import SpatialTransform, x_rotation
@@ -55,7 +56,6 @@ if __name__ == "__main__":
 
     prng_key = jax.random.PRNGKey(0)
 
-    # Do forward kinematics on a random configuration
     q0 = make_q(rbt, prng_key)
     v0 = make_v(rbt, prng_key)
     a0 = make_a(rbt, prng_key)
@@ -63,13 +63,22 @@ if __name__ == "__main__":
     print("v0:", v0)
     print("a0:", a0)
 
+    # Do forward kinematics/dynamics to compute the poses, velocities, and
+    # accelerations of each body given the joint positions, velocities, and
+    # accelerations
     poses, velocities, accelerations = fk(rbt, q0, v0, a0)
+    for b, p, v, a in zip(rbt.bodies, poses, velocities, accelerations):
+        print(b.name)
+        print("  t: ", p.t)
+        print("  v: ", v)
+        print("  a: ", a)
 
-    for i, (p, v, a) in enumerate(zip(poses, velocities, accelerations)):
-        print(f"Body {i}")
-        print("R:\n", p.R)
-        print("t:\n", p.t)
-        print("v:\n", v)
-        print("a:\n", a)
+    # Now do inverse dynamics to compute the joint forces required to achieve
+    # the desired accelerations
+    tau = id(rbt, q0, v0, a0)
+    for b, t in zip(rbt.bodies, tau):
+        print(b.name)
+        print("  tau:", t)
+
 
 

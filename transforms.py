@@ -15,7 +15,7 @@ class SpatialMotionVector:
         if isinstance(other, SpatialMotionVector):
             return SpatialMotionVector(self.vec + other.vec)
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"SpatialMotionVector + {type(other)}")
 
     def skew(self):
         w, v = self.vec[:3], self.vec[3:]
@@ -42,7 +42,13 @@ class SpatialForceVector:
         if isinstance(other, SpatialForceVector):
             return SpatialForceVector(self.vec + other.vec)
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"SpatialForceVector + {type(other)}")
+
+    def __sub__(self, other):
+        if isinstance(other, SpatialForceVector):
+            return SpatialForceVector(self.vec - other.vec)
+        else:
+            raise NotImplementedError(f"SpatialForceVector - {type(other)}")
 
     def __str__(self):
         return str(self.vec)
@@ -102,7 +108,7 @@ class SpatialTransform:
         elif isinstance(other, jnp.ndarray):
             return self.mat @ other
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"SpatialTransform * {type(other)}")
 
     def __str__(self):
         return str(self.mat)
