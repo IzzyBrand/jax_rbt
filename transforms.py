@@ -96,7 +96,7 @@ class SpatialTransform:
 
     def __mul__(self, other):
         if isinstance(other, SpatialTransform):
-            if self.R is None and other.R is None:
+            if self.R is None or other.R is None:
                 return SpatialTransform(self.mat @ other.mat)
             else:
                 return SpatialTransform(self.R @ other.R,
@@ -262,18 +262,20 @@ def quat_from_mat(matrix: jnp.ndarray) -> jnp.ndarray:
 
 
 if __name__ == "__main__":
+    print("Check quat_from_mat and mat_from_quat")
     mat = jnp.eye(3)
     quat = quat_from_mat(mat)
     mat2 = mat_from_quat(quat)
     assert jnp.linalg.norm(quat) == 1
     assert jnp.allclose(mat, mat2)
 
+    print("Checking make_homogenous_transform")
     R = mat_from_euler(jnp.array([1,2,3]))
     t = jnp.array([1,2,3])
-
     T = make_homogenous_transform(R, t)
     T_inv = make_homogenous_transform(R.T, -R.T @ t)
     assert jnp.allclose(T @ T_inv, jnp.eye(4), atol=1e-6)
 
+    print("Checking SpatialTransform")
     X = SpatialTransform(R, t)
     assert jnp.allclose((X * X.inv()).mat, jnp.eye(6), atol=1e-6)

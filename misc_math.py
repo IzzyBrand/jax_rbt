@@ -1,8 +1,21 @@
+import jax
 import jax.numpy as jnp
+
+###############################################################################
+# PRNG helpers
+###############################################################################
+
+def prng_key_gen(seed:int = 0):
+    """A generator that returns a new PRNG key each time it is called."""
+    key = jax.random.PRNGKey(seed)
+    while True:
+        key, subkey = jax.random.split(key)
+        yield subkey
 
 ###############################################################################
 # General Math
 ###############################################################################
+@jax.jit
 def skew(v):
     """Convert a vector to a skew-symmetric matrix. Applied to another vector u,
     skew(v) @ u = v.cross(u)
@@ -11,10 +24,12 @@ def skew(v):
                       [v[2], 0, -v[0]],
                       [-v[1], v[0], 0]])
 
+@jax.jit
 def deskew(m):
     """Convert a skew-symmetric matrix to a vector."""
     return jnp.array([m[2, 1], m[0, 2], m[1, 0]])
 
+@jax.jit
 def normalize(v):
     """Normalize a vector."""
     return v / jnp.linalg.norm(v)

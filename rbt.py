@@ -7,6 +7,7 @@ import jax
 import jax.numpy as jnp
 
 from joint import Joint, Free
+from misc_math import normalize
 
 
 @dataclass
@@ -88,25 +89,23 @@ def make_q(model: Union[Joint, Body, RigidBodyTree],
     # quaternion. The joint configuration is [qx, qy, qz, qw, tx, ty, tz]
     if isinstance(model, Free) and prng_key is None:
         return jnp.array([1, 0, 0, 0, 0, 0, 0])
-    elif isinstance(model, Free) and prng_key:
-        q = jax.random.normal(prng_key, (7,))
-        q[:4] /= jnp.linalg.norm(q[:4])
-        return q
+    elif isinstance(model, Free):
+        quat = jax.random.normal(prng_key, (4,))
+        t = jax.random.normal(prng_key, (3,))
+        return jnp.concatenate([normalize(quat), t])
     # Other joint's can be handled generically using the joint's nq field
     elif isinstance(model, Joint):
         return jnp.zeros(model.nq) if prng_key is None else jax.random.normal(prng_key, (model.nq,))
     elif isinstance(model, Body):
         return make_q(model.joint, prng_key)
     elif isinstance(model, RigidBodyTree):
-        # Get the total number of configuration variables
-        nq = sum(b.joint.nq for b in model.bodies)
-        # Create a configuration vector
-        q = jnp.zeros(nq) if prng_key is None else jax.random.normal(prng_key, (nq,))
-        # Because free joints are special, we need to handle them separately.
-        for b in model.bodies:
-            if isinstance(b.joint, Free):
-                q[b.q_idx:b.q_idx + b.joint.nq] = make_q(b.joint, prng_key)
-        return q
+        sub_qs = []
+        for body in model.bodies:
+            sub_qs.append(make_q(body.joint, prng_key))
+            if prng_key is not None:
+                prng_key, _ = jax.random.split(prng_key)
+
+        return jnp.concatenate(sub_qs)
     else:
         raise ValueError(f"Unknown model type: {type(model)}")
 

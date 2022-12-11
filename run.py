@@ -4,10 +4,11 @@ import matplotlib.pyplot as plt
 
 from dynamics import id
 from inertia import inertia_of_cylinder
-from joint import Revolute, Fixed
-from transforms import SpatialTransform, x_rotation
-from rbt import RigidBodyTree, Body, make_q, make_v, make_a
 from kinematics import fk
+from joint import Revolute, Fixed
+from misc_math import prng_key_gen
+from rbt import RigidBodyTree, Body, make_q, make_v, make_a
+from transforms import SpatialTransform, x_rotation
 
 def make_simple_arm(num_joints: int,
                     joint_angle: float = jnp.pi / 6,
@@ -34,10 +35,10 @@ def make_simple_arm(num_joints: int,
     bodies = [Body(0,        # id
                    Fixed(),  # joint
                    None,     # parent_id
-                   "base")]  # name
+                   "base", inertia, body_mass, jnp.zeros(3))]  # name
 
     # Create the rest of the bodies
-    for i in range(1, num_joints):
+    for i in range(1, num_joints + 1):
         bodies.append(Body(i,            # id
                            joint,        # joint
                            i - 1,        # parent_id
@@ -51,14 +52,13 @@ def make_simple_arm(num_joints: int,
 
 
 if __name__ == "__main__":
-
     rbt = make_simple_arm(5)
 
-    prng_key = jax.random.PRNGKey(0)
-
-    q0 = make_q(rbt, prng_key)
-    v0 = make_v(rbt, prng_key)
-    a0 = make_a(rbt, prng_key)
+    # Get a random configuration
+    key_gen = prng_key_gen()
+    q0 = make_q(rbt, next(key_gen))
+    v0 = make_v(rbt, next(key_gen))
+    a0 = make_a(rbt, next(key_gen))
     print("q0:", q0)
     print("v0:", v0)
     print("a0:", a0)
@@ -79,6 +79,3 @@ if __name__ == "__main__":
     for b, t in zip(rbt.bodies, tau):
         print(b.name)
         print("  tau:", t)
-
-
-

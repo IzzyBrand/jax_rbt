@@ -33,12 +33,11 @@ def compute_joint_forces_from_body_forces(rbt: RigidBodyTree,
     joint_forces = [None for _ in rbt.bodies]
 
     for body in reversed(rbt.bodies):
-        i = body.idx
         # Sum the forces that this body is transmitting to its children
         child_joint_forces = sum((joint_forces[child.idx] for child in body.children), start=SpatialForceVector())
         # Compute the force transmitted from the parent to this body
         # Featherstone (5.10)
-        joint_forces[i] = net_forces[i] - external_forces[i] + child_joint_forces
+        joint_forces[body.idx] = net_forces[body.idx] - external_forces[body.idx] + child_joint_forces
 
     return joint_forces
 
