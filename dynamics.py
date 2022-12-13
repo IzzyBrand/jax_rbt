@@ -1,9 +1,10 @@
 import jax.numpy as jnp
+from jax.nn import one_hot
 
 from inertia import SpatialInertiaTensor
 from joint import Joint, Free, Revolute
 from kinematics import fk
-from rbt import RigidBodyTree, Body
+from rbt import RigidBodyTree, Body, make_a
 from transforms import (
     SpatialMotionVector,
     SpatialForceVector,
@@ -26,7 +27,7 @@ def compute_body_force_from_accleration(body: Body,
 
 def compute_joint_forces_from_body_forces(rbt: RigidBodyTree,
                                           net_forces: list[SpatialForceVector],
-                                          external_forces: list[SpatialForceVector]):
+                                          f_ext: list[SpatialForceVector]):
     """Compute the force transmitted across each joint, given the net force on
     each body and the external force on each body."""
 
@@ -37,32 +38,41 @@ def compute_joint_forces_from_body_forces(rbt: RigidBodyTree,
         child_joint_forces = sum((joint_forces[child.idx] for child in body.children), start=SpatialForceVector())
         # Compute the force transmitted from the parent to this body
         # Featherstone (5.10)
-        joint_forces[body.idx] = net_forces[body.idx] - external_forces[body.idx] + child_joint_forces
+        joint_forces[body.idx] = net_forces[body.idx] - f_ext[body.idx] + child_joint_forces
 
     return joint_forces
 
 
-def id(rbt, q, v, a, external_forces = None):
+def id(rbt, q, v, a, f_ext = None):
     """Inverse dynamics using the recursive Newton-Euler algorithm.
     See Featherstone section 5.3"""
     # If external forces are not supplied, assume they are zero for every body
-    if external_forces is None:
-        external_forces = [SpatialForceVector() for _ in rbt.bodies]
+    if f_ext is None:
+        f_ext = [SpatialForceVector() for _ in rbt.bodies]
     # 1. Compute the velocity, and acceleration of each body
     _, spatial_vs, spatial_as = fk(rbt, q, v, a)
     # 2. Compute the forces on each body required to achieve the accelerations
     net_forces = [compute_body_force_from_accleration(body, s_v, s_a) for body, s_v, s_a in zip(rbt.bodies, spatial_vs, spatial_as)]
     # 3. Compute the force transmitted across each joint
-    return compute_joint_forces_from_body_forces(rbt, net_forces, external_forces)
+    joint_forces = compute_joint_forces_from_body_forces(rbt, net_forces, f_ext)
+    # 4. Convert the joint forces to generalized coordinates.  Featherstone (5.11)
+    return jnp.concatenate([b.joint.S.T @ f_j.vec for b, f_j in zip(rbt.bodies, joint_forces)])
 
 
-# def joint_wrench(joint: Joint, u: jnp.ndarray) -> jnp.ndarray:
-#     """Get the wrench exerted by a joint for a given input u"""
-#     assert u.shape == (joint.nf,)
 
-#     if isinstance(joint, Revolute):
-#         return jnp.array([0, 0, 0, 0, 0, u[0]])
-#     elif isinstance(joint, Free):
-#         return u
-#     else:
-#         return jnp.zeros(6)
+def fd_differential(rbt, q, v, tau, f_ext=None):
+    """Forward dynamics using the differential algorithm.
+    See Featherstone section 6.1"""
+    # Calculate the joint space bias force by computing the inverse dynamics
+    # with zero acceleration. Featherstone (6.2)
+    C = id(rbt, q, v, make_a(rbt))
+
+    # Calculate the joint space inertia matrix by using differential inverse
+    # dynamics. Featherstone (6.4)
+    def id_differential(alpha):
+        return id(rbt, q, v, one_hot(alpha, tau.shape[0]), f_ext) - C
+
+    H = jnp.stack([id_differential(alpha) for alpha in range(tau.shape[0])]).T
+
+    # Solve H * qdd = tau - C for qdd Featherstone (6.1)
+    return jnp.linalg.solve(H, tau - C)

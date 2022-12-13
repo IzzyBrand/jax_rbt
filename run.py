@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
-from dynamics import id
+from dynamics import id, fd_differential
 from inertia import inertia_of_cylinder
 from kinematics import fk
 from joint import Revolute, Fixed
@@ -76,6 +76,10 @@ if __name__ == "__main__":
     # Now do inverse dynamics to compute the joint forces required to achieve
     # the desired accelerations
     tau = id(rbt, q0, v0, a0)
-    for b, t in zip(rbt.bodies, tau):
-        print(b.name)
-        print("  tau:", t)
+    print("tau:", tau)
+
+    # Now do forward dynamics to compute the joint accelerations given the
+    # joint positions, velocities, and forces
+    a1 = fd_differential(rbt, q0, v0, tau)
+    print("a0:", a0)
+    print("a1:", a1)

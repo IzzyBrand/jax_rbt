@@ -78,7 +78,7 @@ class RigidBodyTree:
             body.v_idx = v_idx
             idx += 1
             q_idx += body.joint.nq
-            v_idx += body.joint.nf
+            v_idx += body.joint.nv
 
 
 def make_q(model: Union[Joint, Body, RigidBodyTree],
@@ -114,14 +114,14 @@ def make_v(model: Union[Joint, Body, RigidBodyTree],
     """Get a velocity vector for a model. If a prng_key is provided, the
     velocity will be random."""
     if isinstance(model, Joint):
-        return jnp.zeros(model.nf) if prng_key is None else jax.random.normal(prng_key, (model.nf,))
+        return jnp.zeros(model.nv) if prng_key is None else jax.random.normal(prng_key, (model.nv,))
     elif isinstance(model, Body):
         return make_v(model.joint, prng_key)
     elif isinstance(model, RigidBodyTree):
         # Get the total number of velocity variables
-        nf = sum(b.joint.nf for b in model.bodies)
+        nv = sum(b.joint.nv for b in model.bodies)
         # Create a velocity vector
-        return jnp.zeros(nf) if prng_key is None else jax.random.normal(prng_key, (nf,))
+        return jnp.zeros(nv) if prng_key is None else jax.random.normal(prng_key, (nv,))
     else:
         raise ValueError(f"Unknown model type: {type(model)}")
 
@@ -131,7 +131,7 @@ def seg_q(body: Body, q: jnp.ndarray) -> jnp.ndarray:
 
 def seg_v(body: Body, v: jnp.ndarray) -> jnp.ndarray:
     """Get the segment of v corresponding to the body's joint"""
-    return v[body.v_idx:body.v_idx + body.joint.nf]
+    return v[body.v_idx:body.v_idx + body.joint.nv]
 
 # Actuators correspond to the degrees of freedom of the robot
 make_u = make_a = make_v

@@ -21,13 +21,13 @@ class Fixed(Joint):
     # Size of the generalized coordinate vector for this joint
     nq: int = 0
     # Degrees of freedom of this joint
-    nf: int = 0
+    nv: int = 0
     # Number of constraints imposed by this joint
     nc: int = 6
     # Number of degrees of actuation for this joint
     na: int = 0
 
-    # Joint motion subspace matrix (6 x nf) maps generalized joint velocity to
+    # Joint motion subspace matrix (6 x nv) maps generalized joint velocity to
     # relative spatial velocity of the parent and child bodies
     #
     #     v = S(q)q̇         Featherstone (3.33)
@@ -42,7 +42,7 @@ class Fixed(Joint):
 
 class Revolute(Joint):
     nq: int = 1
-    nf: int = 1
+    nv: int = 1
     nc: int = 5
     na: int = 1
     # See Featherstone Table 4.1
@@ -53,7 +53,7 @@ class Revolute(Joint):
 
 class Free(Joint):
     nq: int = 7
-    nf: int = 6
+    nv: int = 6
     nc: int = 0
     na: int = 6
     S = jnp.eye(6)
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         assert issubclass(j, Joint)
 
         # Make sure S has the right shape
-        assert j.S.shape == (6, j.nf)
+        assert j.S.shape == (6, j.nv)
         # Make sure Tc has the right shape
         assert j.Tc.shape == (6, j.nc)
         # Make sure Ta has the right shape
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         # Make sure the subspaces have the right dimensions
         # See Example 3.1 in Featherstone
         assert j.nc + j.na == 6
-        assert j.nf == j.na
+        assert j.nv == j.na
 
         # Check that the constraint and motion subspaces are orthogonal
         # Featherstone (3.36)
