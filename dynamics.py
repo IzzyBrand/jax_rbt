@@ -26,8 +26,8 @@ def compute_body_force_from_accleration(body: Body,
 
 
 def compute_joint_forces_from_body_forces(rbt: RigidBodyTree,
-                                          net_forces: list[SpatialForceVector],
-                                          f_ext: list[SpatialForceVector]):
+                                          net_forces,
+                                          f_ext):
     """Compute the force transmitted across each joint, given the net force on
     each body and the external force on each body."""
 
@@ -49,15 +49,16 @@ def id(rbt, q, v, a, f_ext = None):
     # If external forces are not supplied, assume they are zero for every body
     if f_ext is None:
         f_ext = [SpatialForceVector() for _ in rbt.bodies]
+
     # 1. Compute the velocity, and acceleration of each body
     _, spatial_vs, spatial_as = fk(rbt, q, v, a)
     # 2. Compute the forces on each body required to achieve the accelerations
     net_forces = [compute_body_force_from_accleration(body, s_v, s_a) for body, s_v, s_a in zip(rbt.bodies, spatial_vs, spatial_as)]
     # 3. Compute the force transmitted across each joint
     joint_forces = compute_joint_forces_from_body_forces(rbt, net_forces, f_ext)
-    # 4. Convert the joint forces to generalized coordinates.  Featherstone (5.11)
-    return jnp.concatenate([b.joint.S.T @ f_j.vec for b, f_j in zip(rbt.bodies, joint_forces)])
 
+    # Convert the joint forces to generalized coordinates.  Featherstone (5.11)
+    return jnp.concatenate([b.joint.S.T @ f_j.vec for b, f_j in zip(rbt.bodies, joint_forces)])
 
 
 def fd_differential(rbt, q, v, tau, f_ext=None):

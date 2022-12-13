@@ -22,10 +22,12 @@ class Body:
     mass: float = 0.0
     com: jnp.ndarray = jnp.zeros(3)
 
+    # For drawing
+    visuals: Optional[list[dict]] = None
+
     # These fields are set by the RigidBodyTree
     parent: Optional[Body] = None
     children: Optional[list[Body]] = None
-
     idx: Optional[int] = None
     q_idx: Optional[int] = None
     v_idx: Optional[int] = None

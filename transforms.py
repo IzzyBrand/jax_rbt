@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import numpy as np
 
 from misc_math import skew, deskew, normalize
 
@@ -72,8 +73,9 @@ class SpatialTransform:
 
         # Init from a 6x6 matrix
         elif len(args) == 1:
-            self.R, self.t = None, None
             self.mat = args[0]
+            self.R = self.mat[:3, :3]
+            self.t = deskew(-self.R.T @ self.mat[3:, :3])
             assert self.mat.shape == (6, 6)
 
         # Default is the identity transform
@@ -86,21 +88,12 @@ class SpatialTransform:
 
     def inv(self):
         """Inverse of the transform."""
-        if self.R is not None:
-            # See Featherstone (2.26)
-            return SpatialTransform(jnp.block([
-                [self.R.T, jnp.zeros((3, 3))],
-                [skew(self.t) @ self.R.T, self.R.T]]))
-        else:
-            return SpatialTransform(jnp.linalg.inv(self.mat))
+        return SpatialTransform(self.R.T, -self.R.T @ self.t)
 
     def __mul__(self, other):
         if isinstance(other, SpatialTransform):
-            if self.R is None or other.R is None:
-                return SpatialTransform(self.mat @ other.mat)
-            else:
-                return SpatialTransform(self.R @ other.R,
-                                        self.R @ other.t + self.t)
+            return SpatialTransform(self.R @ other.R,
+                                    self.R @ other.t + self.t)
         elif isinstance(other, SpatialMotionVector):
             return SpatialMotionVector(self.mat @ other.vec)
         elif isinstance(other, SpatialForceVector):
@@ -112,6 +105,11 @@ class SpatialTransform:
 
     def __str__(self):
         return str(self.mat)
+
+    def homogenous_numpy(self):
+        """Return the 4x4 homogenous transform matrix"""
+        return np.block([[self.R, self.t[:, None]],
+                         [jnp.zeros((1, 3)), 1]])
 
 ###############################################################################
 # Homogeneous transforms
@@ -278,4 +276,5 @@ if __name__ == "__main__":
 
     print("Checking SpatialTransform")
     X = SpatialTransform(R, t)
-    assert jnp.allclose((X * X.inv()).mat, jnp.eye(6), atol=1e-6)
+    [[print(i) for i in r] for r in (X * X.inv()).mat]
+    assert jnp.allclose((X * X.inv()).mat, jnp.eye(6), atol=1e-5)

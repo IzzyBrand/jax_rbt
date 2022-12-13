@@ -1,6 +1,4 @@
-import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 
 from dynamics import id, fd_differential
 from inertia import inertia_of_cylinder
@@ -9,6 +7,7 @@ from joint import Revolute, Fixed
 from misc_math import prng_key_gen
 from rbt import RigidBodyTree, Body, make_q, make_v, make_a
 from transforms import SpatialTransform, x_rotation
+import visualize as vis
 
 def make_simple_arm(num_joints: int,
                     joint_angle: float = jnp.pi / 6,
@@ -47,13 +46,19 @@ def make_simple_arm(num_joints: int,
                            body_mass,    # mass
                            com))         # com
 
+    T_body_to_geom = SpatialTransform(x_rotation(jnp.pi/2), 0.5 * t_z)
+    for body in bodies:
+        body.visuals =[{"type": "cylinder",
+                        "radius": 0.25 * link_length,
+                        "length": link_length,
+                        "offset": T_body_to_geom.homogenous_numpy()}]
+
     # Create the tree
     return RigidBodyTree(bodies)
 
 
-if __name__ == "__main__":
-    rbt = make_simple_arm(5)
-
+def run_and_print_dynamics(rbt):
+    """Tries out various forward and inverse dynamics functions."""
     # Get a random configuration
     key_gen = prng_key_gen()
     q0 = make_q(rbt, next(key_gen))
@@ -83,3 +88,13 @@ if __name__ == "__main__":
     a1 = fd_differential(rbt, q0, v0, tau)
     print("a0:", a0)
     print("a1:", a1)
+
+if __name__ == "__main__":
+    rbt = make_simple_arm(5)
+    key_gen = prng_key_gen()
+    q0 = make_q(rbt, next(key_gen))
+
+    vis.add_rbt(rbt)
+    while True:
+        vis.draw_rbt(rbt, q0)
+        q0 = q0 + 0.05
