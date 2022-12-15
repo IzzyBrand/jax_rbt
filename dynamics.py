@@ -4,12 +4,12 @@ from jax.nn import one_hot
 from inertia import SpatialInertiaTensor
 from joint import Joint, Free, Revolute
 from kinematics import fk
-from rbt import RigidBodyTree, Body, make_a
+from rbt import RigidBodyTree, Body, make_v
 from transforms import (
     SpatialMotionVector,
     SpatialForceVector,
+    SO3_hat,
 )
-from misc_math import skew
 
 
 def compute_body_force_from_accleration(body: Body,
@@ -66,7 +66,7 @@ def fd_differential(rbt, q, v, tau, f_ext=None):
     See Featherstone section 6.1"""
     # Calculate the joint space bias force by computing the inverse dynamics
     # with zero acceleration. Featherstone (6.2)
-    C = id(rbt, q, v, make_a(rbt))
+    C = id(rbt, q, v, make_v(rbt))
 
     # Calculate the joint space inertia matrix by using differential inverse
     # dynamics. Featherstone (6.4)

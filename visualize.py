@@ -1,11 +1,12 @@
 import meshcat
 
+import numpy as np
 from rbt import RigidBodyTree, seg_q
 from joint import joint_transform
 from transforms import SpatialTransform
 
 
-vis = meshcat.Visualizer().open()
+vis = meshcat.Visualizer()
 
 def add_rbt(rbt: RigidBodyTree):
     """Add a rigid body tree to the visualizer"""
@@ -14,7 +15,7 @@ def add_rbt(rbt: RigidBodyTree):
             continue
         for i, geom in enumerate(body.visuals):
             if geom["type"] == "box":
-                obj = meshcat.geometry.Box(geom["size"])
+                obj = meshcat.geometry.Box(np.array(geom["size"], dtype=float))
             elif geom["type"] == "sphere":
                 obj = meshcat.geometry.Sphere(geom["radius"])
             elif geom["type"] == "cylinder":
@@ -25,7 +26,7 @@ def add_rbt(rbt: RigidBodyTree):
             vis[body.name][str(i)].set_object(obj)
 
             if "offset" in geom:
-                vis[body.name][str(i)].set_transform(geom["offset"])
+                vis[body.name][str(i)].set_transform(np.array(geom["offset"], dtype=float))
 
 def draw_rbt(rbt: RigidBodyTree, q):
     body_poses = []
@@ -35,4 +36,4 @@ def draw_rbt(rbt: RigidBodyTree, q):
         X_parent = body_poses[body.parent.idx] if body.parent else SpatialTransform()
         X_body = X_parent * X_joint
         body_poses.append(X_body)
-        vis[body.name].set_transform(X_body.homogenous_numpy())
+        vis[body.name].set_transform(np.array(X_body.homogenous(), dtype=float))

@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 
 from joint import joint_transform
-from rbt import RigidBodyTree, seg_q, seg_v, seg_a
+from rbt import RigidBodyTree, seg_q, seg_v
 from transforms import SpatialMotionVector, SpatialTransform
 
 
@@ -15,7 +15,7 @@ def fk(rbt: RigidBodyTree, q: jnp.ndarray, v: jnp.ndarray, a: jnp.ndarray):
         # Get the segment of q, v, and a corresponding to the body's joint
         q_joint = seg_q(body, q)
         v_joint = seg_v(body, v)
-        a_joint = seg_a(body, a)
+        a_joint = seg_v(body, a)
 
         # Compute, the pose, velocity, acceleration of the joint.
         # Assumes constant joint motion subspace and no bias velocity

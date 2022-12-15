@@ -134,7 +134,3 @@ def seg_q(body: Body, q: jnp.ndarray) -> jnp.ndarray:
 def seg_v(body: Body, v: jnp.ndarray) -> jnp.ndarray:
     """Get the segment of v corresponding to the body's joint"""
     return v[body.v_idx:body.v_idx + body.joint.nv]
-
-# Actuators correspond to the degrees of freedom of the robot
-make_u = make_a = make_v
-seg_u = seg_a = seg_v

@@ -1,10 +1,10 @@
 import jax.numpy as jnp
 
-from misc_math import skew
 from transforms import (
     SpatialMotionVector,
     SpatialForceVector,
-    SpatialTransform
+    SpatialTransform,
+    SO3_hat,
 )
 
 class SpatialInertiaTensor:
@@ -42,7 +42,7 @@ class SpatialInertiaTensor:
         c is a vector from the offset frame to the center of mass.
         """
         # Featherstone (2.63)
-        c_cross = skew(c)
+        c_cross = SO3_hat(c)
         return jnp.block([
             [self.I + self.m * c_cross @ c_cross.T, self.m * c_cross],
             [self.m * c_cross.T, self.m * jnp.eye(3)]])

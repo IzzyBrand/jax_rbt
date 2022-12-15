@@ -1,12 +1,13 @@
 import jax.numpy as jnp
 
 from dynamics import id, fd_differential
-from inertia import inertia_of_cylinder
+from inertia import inertia_of_cylinder, inertia_of_box
+from integrate import euler_step
 from kinematics import fk
-from joint import Revolute, Fixed
+from joint import Revolute, Fixed, Free
 from misc_math import prng_key_gen
-from rbt import RigidBodyTree, Body, make_q, make_v, make_a
-from transforms import SpatialTransform, x_rotation
+from rbt import RigidBodyTree, Body, make_q, make_v
+from transforms import SpatialTransform, SpatialForceVector, x_rotation
 import visualize as vis
 
 def make_simple_arm(num_joints: int,
@@ -51,9 +52,16 @@ def make_simple_arm(num_joints: int,
         body.visuals =[{"type": "cylinder",
                         "radius": 0.25 * link_length,
                         "length": link_length,
-                        "offset": T_body_to_geom.homogenous_numpy()}]
+                        "offset": T_body_to_geom.homogenous()}]
 
     # Create the tree
+    return RigidBodyTree(bodies)
+
+
+def make_box(size, mass):
+    """Make a box with a free joint"""
+    bodies = [Body(0, Free(), None, "box", inertia_of_box(mass, size), mass)]
+    bodies[0].visuals = [{"type": "box", "size": size}]
     return RigidBodyTree(bodies)
 
 
@@ -63,7 +71,7 @@ def run_and_print_dynamics(rbt):
     key_gen = prng_key_gen()
     q0 = make_q(rbt, next(key_gen))
     v0 = make_v(rbt, next(key_gen))
-    a0 = make_a(rbt, next(key_gen))
+    a0 = make_v(rbt, next(key_gen))
     print("q0:", q0)
     print("v0:", v0)
     print("a0:", a0)
@@ -90,11 +98,24 @@ def run_and_print_dynamics(rbt):
     print("a1:", a1)
 
 if __name__ == "__main__":
-    rbt = make_simple_arm(5)
+    # rbt = make_simple_arm(5)
+    rbt = make_box(jnp.array([0.1, 0.2, 0.3]), 1.0)
     key_gen = prng_key_gen()
-    q0 = make_q(rbt, next(key_gen))
+    q = make_q(rbt)
+    v = make_v(rbt)
+    tau = make_v(rbt)
+
+    a = make_v(rbt)
+    a = a.at[5].set(-9.81)
+
+    v = v.at[:3].set(5)
+    v = v.at[5].set(3)
+
+    gravity_forces = [SpatialForceVector(jnp.array([0,0,0,0,0,-1])) for _ in rbt.bodies]
 
     vis.add_rbt(rbt)
     while True:
-        vis.draw_rbt(rbt, q0)
-        q0 = q0 + 0.05
+        vis.draw_rbt(rbt, q)
+        # a = fd_differential(rbt, q, v, tau)
+        print(f"q:\t{q}\nv:\t{v}\na:\t{a}\ntau:\t{tau}")
+        q, v = euler_step(rbt, q, v, a, 0.01)

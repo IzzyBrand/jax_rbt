@@ -1,7 +1,6 @@
+import jax
 import jax.numpy as jnp
 import numpy as np
-
-from misc_math import skew, deskew, normalize
 
 ###############################################################################
 # Spatial Algebra
@@ -20,8 +19,8 @@ class SpatialMotionVector:
 
     def skew(self):
         w, v = self.vec[:3], self.vec[3:]
-        return jnp.block([[skew(w), jnp.zeros((3, 3))],
-                          [skew(v), skew(w)]])
+        return jnp.block([[SO3_hat(w), jnp.zeros((3, 3))],
+                          [SO3_hat(v), SO3_hat(w)]])
 
     def cross(self, other):
         if isinstance(other, SpatialMotionVector):
@@ -64,18 +63,18 @@ class SpatialTransform:
         if len(args) == 2:
             self.R, self.t = args
             # See Feathersteone (2.24)
-            # ┌               ┐
-            # │ R           0 │
-            # │ -R@skew(t)  R │
-            # └               ┘
+            # ┌                  ┐
+            # │ R              0 │
+            # │ -R@SO3_hat(t)  R │
+            # └                  ┘
             self.mat = jnp.block([[self.R, jnp.zeros((3, 3))],
-                                  [-self.R @ skew(self.t), self.R]])
+                                  [-self.R @ SO3_hat(self.t), self.R]])
 
         # Init from a 6x6 matrix
         elif len(args) == 1:
             self.mat = args[0]
             self.R = self.mat[:3, :3]
-            self.t = deskew(-self.R.T @ self.mat[3:, :3])
+            self.t = SO3_vee(-self.R.T @ self.mat[3:, :3])
             assert self.mat.shape == (6, 6)
 
         # Default is the identity transform
@@ -106,13 +105,13 @@ class SpatialTransform:
     def __str__(self):
         return str(self.mat)
 
-    def homogenous_numpy(self):
+    def homogenous(self):
         """Return the 4x4 homogenous transform matrix"""
-        return np.block([[self.R, self.t[:, None]],
-                         [jnp.zeros((1, 3)), 1]])
+        return jnp.block([[self.R, self.t[:, None]],
+                          [jnp.zeros((1, 3)), 1]])
 
 ###############################################################################
-# Homogeneous transforms
+# SO3 lie group (rotation matrices)
 ###############################################################################
 
 def x_rotation(theta: float) -> jnp.ndarray:
@@ -133,7 +132,36 @@ def z_rotation(theta: float) -> jnp.ndarray:
 def mat_from_euler(euler: jnp.ndarray) -> jnp.ndarray:
     return z_rotation(euler[2]) @ y_rotation(euler[1]) @ x_rotation(euler[0])
 
+def SO3_hat(w: jnp.ndarray) -> jnp.ndarray:
+    # A Micro Lie Theory (Example 3)
+    wx, wy, wz = w
+    S = jnp.array([[0, -wz, wy],
+                   [wz, 0, -wx],
+                   [-wy, wx, 0]])
+    return S
 
+def SO3_vee(S: jnp.ndarray) -> jnp.ndarray:
+    # A Micro Lie Theory (Example 3)
+    w = jnp.array([S[2, 1], S[0, 2], S[1, 0]])
+    return w
+
+def SO3_exp(w: jnp.ndarray) -> jnp.ndarray:
+    # A Micro Lie Theory (Example 4)
+    θ = jnp.linalg.norm(w)
+    # Avoid division by zero
+    if jnp.abs(θ) < 1e-8:
+        return jnp.eye(3)
+    S = SO3_hat(w)
+    R = np.eye(3) \
+      + S * np.sin(θ) / θ\
+      + S @ S * (1.0 - np.cos(θ)) / θ**2
+    return R
+
+###############################################################################
+# SE3 lie group (homogenous transforms)
+###############################################################################
+
+@jax.jit
 def make_homogenous_transform(R: jnp.ndarray, t: jnp.ndarray) -> jnp.ndarray:
     """Take a rotation matrix and a translation vector and return a homogeneous
     transformation matrix
@@ -144,11 +172,13 @@ def make_homogenous_transform(R: jnp.ndarray, t: jnp.ndarray) -> jnp.ndarray:
     """
     return jnp.block([[R, t.squeeze()[:, None]], [jnp.zeros((1, 3)), 1]])
 
+
 ###############################################################################
-# Quaternions
+# S3 lie group (quaternions)
 ###############################################################################
 
 # From https://github.com/brentyi/jaxlie/blob/76c3042340d3db79854e4a5ca83f04dae0330079/jaxlie/_so3.py#L270-L281
+@jax.jit
 def mat_from_quat(quat: jnp.ndarray) -> jnp.ndarray:
     norm = quat @ quat
     q = quat * jnp.sqrt(2.0 / norm)
@@ -161,6 +191,7 @@ def mat_from_quat(quat: jnp.ndarray) -> jnp.ndarray:
         ]
     )
 
+@jax.jit
 def quat_from_mat(matrix: jnp.ndarray) -> jnp.ndarray:
     assert matrix.shape == (3, 3)
 
@@ -258,6 +289,15 @@ def quat_from_mat(matrix: jnp.ndarray) -> jnp.ndarray:
 
     return q * 0.5 / jnp.sqrt(t)
 
+@jax.jit
+def qmul(q1, q0):
+    """Multiply two quaternions."""
+    w0, x0, y0, z0 = q0
+    w1, x1, y1, z1 = q1
+    return jnp.array([-x1*x0 - y1*y0 - z1*z0 + w1*w0,
+                       x1*w0 + y1*z0 - z1*y0 + w1*x0,
+                      -x1*z0 + y1*w0 + z1*x0 + w1*y0,
+                       x1*y0 - y1*x0 + z1*w0 + w1*z0])
 
 if __name__ == "__main__":
     print("Check quat_from_mat and mat_from_quat")
