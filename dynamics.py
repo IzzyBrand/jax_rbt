@@ -43,12 +43,16 @@ def id(rbt, q, v, a, f_ext) -> jnp.ndarray:
         # Featherstone (5.10)
         joint_forces[body.idx] = net_forces[body.idx] - f_ext[body.idx] + child_joint_forces
 
-    print("q[0]:\t", q[0])
-    print("v[0]:\t", v[0])
-    print("a[0]:\t", a[0])
-    print("Net Forces[0]:\t", net_forces[0])
-    print("Joint Forces[0]:\t", body_poses[0].inv() * joint_forces[0])
-    print("joint.S.T\t", rbt.bodies[0].joint.S.T)
+    # print("q[0]:\t", q[0])
+    # print("v[0]:\t", v[0])
+    # print("a[0]:\t", a[0])
+    # print("X[0]:\t", body_poses[0])
+    # print("s_v[0]:\t", body_vels[0])
+    # print("s_a[0]:\t", body_accs[0])
+    # print("f_ext[0]:\t", f_ext[0])
+    # print("Net Forces[0]:\t", net_forces[0])
+    # print("Joint Forces[0]:\t", body_poses[0].inv() * joint_forces[0])
+    # print("joint.S.T\t", rbt.bodies[0].joint.S.T)
 
     # TODO: investigate why this is not working
 
@@ -74,8 +78,8 @@ def fd_differential(rbt, q, v, tau, f_ext):
 
     H = jnp.stack([id_differential(alpha) for alpha in range(tau.shape[0])]).T
 
-    print("C:\t", C)
-    print("H:\t", H)
-    print("tau:\t", tau)
+    # print("C:\t", C)
+    # print("H:\t", H)
+    # print("tau:\t", tau)
     # Solve H * qdd = tau - C for qdd Featherstone (6.1)
     return jnp.linalg.solve(H, tau - C)

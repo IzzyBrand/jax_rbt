@@ -10,6 +10,11 @@ from rbt import RigidBodyTree, Body, make_q, make_v
 from transforms import SpatialTransform, SpatialForceVector, x_rotation
 import visualize as vis
 
+
+################################################################################
+# Helper functions to create various RBTs
+################################################################################
+
 def make_simple_arm(num_joints: int,
                     joint_angle: float = jnp.pi / 6,
                     link_length: float = 0.1,
@@ -77,13 +82,17 @@ def make_pendulum(length, mass):
                 inertia,
                 mass)
 
-    T_joint_cylinder = SpatialTransform(jnp.eye(3), t_joint_com)
+    T_joint_cylinder = SpatialTransform(jnp.eye(3), 0.5 * t_joint_com)
     body.visuals = [
-        {"type": "cylinder", "radius": 0.1 * length, "length": length, "offset": T_joint_cylinder.homogenous()},
-        {"type": "sphere", "radius": 0.25 * length, "offset": T_joint_com.homogenous()}
+        {"type": "cylinder", "radius": 0.03 * length, "length": length, "offset": T_joint_cylinder.homogenous()},
+        {"type": "sphere", "radius": 0.1 * length, "offset": T_joint_com.homogenous()}
     ]
     return RigidBodyTree([body])
 
+
+################################################################################
+# Various Experiments
+################################################################################
 
 def run_and_print_dynamics(rbt):
     """Tries out various forward and inverse dynamics functions."""
@@ -117,23 +126,36 @@ def run_and_print_dynamics(rbt):
     print("a0:", a0)
     print("a1:", a1)
 
-if __name__ == "__main__":
-    jnp.set_printoptions(precision=6, suppress=True)
-    # rbt = make_simple_arm(5)
-    # rbt = make_box(jnp.array([0.1, 0.2, 0.3]), 1.0)
-    rbt = make_pendulum(0.4, 1.0)
+def simulate_gravity(rbt):
+    """Simulates the dynamics of a rigid body tree under gravity."""
     vis.add_rbt(rbt)
 
     q = make_q(rbt)
     v = make_v(rbt)
     tau = make_v(rbt)
+    a = make_v(rbt)
 
-    q = jnp.array([jnp.pi/2])
+    # q = jnp.array([jnp.pi/4])
+    v = jnp.array([1, 1e-3, 1e-3, 0, 0, 0])
 
-    gravity_forces = [SpatialForceVector(jnp.array([0,0,0,0,0,-9.81])) for _ in rbt.bodies]
+    f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,0])) for _ in rbt.bodies]
 
     while True:
         vis.draw_rbt(rbt, q)
-        a = fd_differential(rbt, q, v, tau, gravity_forces)
+        a = fd_differential(rbt, q, v, tau, f_ext)
         print("fd_differential:", a, "\n\n")
         q, v = euler_step(rbt, q, v, a, 0.01)
+
+
+################################################################################
+# Main
+################################################################################
+
+if __name__ == "__main__":
+    jnp.set_printoptions(precision=6, suppress=True)
+    # rbt = make_simple_arm(5)
+    rbt = make_box(jnp.array([0.05, 0.2, 0.3]), 1.0)
+    # rbt = make_pendulum(0.4, 1.0)
+
+    # run_and_print_dynamics(rbt)
+    simulate_gravity(rbt)

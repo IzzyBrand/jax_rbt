@@ -132,6 +132,7 @@ def z_rotation(theta: float) -> jnp.ndarray:
 def mat_from_euler(euler: jnp.ndarray) -> jnp.ndarray:
     return z_rotation(euler[2]) @ y_rotation(euler[1]) @ x_rotation(euler[0])
 
+@jax.jit
 def SO3_hat(w: jnp.ndarray) -> jnp.ndarray:
     # A Micro Lie Theory (Example 3)
     wx, wy, wz = w
@@ -140,17 +141,20 @@ def SO3_hat(w: jnp.ndarray) -> jnp.ndarray:
                    [-wy, wx, 0]])
     return S
 
+@jax.jit
 def SO3_vee(S: jnp.ndarray) -> jnp.ndarray:
     # A Micro Lie Theory (Example 3)
     w = jnp.array([S[2, 1], S[0, 2], S[1, 0]])
     return w
 
+# TODO: Figure out how to jit this
+# @jax.jit
 def SO3_exp(w: jnp.ndarray) -> jnp.ndarray:
     # A Micro Lie Theory (Example 4)
+    # Compute the magnitude of the rotation
     θ = jnp.linalg.norm(w)
     # Avoid division by zero
-    if jnp.abs(θ) < 1e-8:
-        return jnp.eye(3)
+    θ = jnp.where(θ, θ, 1e-8)
     S = SO3_hat(w)
     R = np.eye(3) \
       + S * np.sin(θ) / θ\
