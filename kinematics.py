@@ -7,9 +7,14 @@ from transforms import SpatialMotionVector, SpatialTransform
 
 def fk(rbt: RigidBodyTree, q: jnp.ndarray, v: jnp.ndarray, a: jnp.ndarray):
     """Compute body pose, vel, acc given joint pose, vel, acc"""
-    body_poses = []
-    body_velocities = []
-    body_accelerations = []
+
+    # NOTE: The root body does not have a parent, but rather than use an if
+    # statement, we just add a dummy body at the start of the list, and shift
+    # the indices of the other bodies by 1.
+
+    body_poses = [SpatialTransform()]
+    body_velocities = [SpatialMotionVector()]
+    body_accelerations = [SpatialMotionVector()]
 
     for body in rbt.bodies:
         # Get the segment of q, v, and a corresponding to the body's joint
@@ -21,7 +26,7 @@ def fk(rbt: RigidBodyTree, q: jnp.ndarray, v: jnp.ndarray, a: jnp.ndarray):
         # Assumes constant joint motion subspace and no bias velocity
 
         # Get the pose of the parent
-        X_world_parent = body_poses[body.parent.idx] if body.parent else SpatialTransform()
+        X_world_parent = body_poses[body.parent_idx + 1]
         # Compute the joint transform
         X_parent_child = joint_transform(body.joint, q_i)
         # Compute the pose of the body
@@ -29,7 +34,7 @@ def fk(rbt: RigidBodyTree, q: jnp.ndarray, v: jnp.ndarray, a: jnp.ndarray):
         body_poses.append(X_body)
 
         # Get the velocity of the parent
-        v_parent = body_velocities[body.parent.idx] if body.parent else SpatialMotionVector()
+        v_parent = body_velocities[body.parent_idx + 1]
         # Compute the joint velocity in world frame (Featherstone 3.32)
         v_joint = X_body * SpatialMotionVector(body.joint.S @ v_i)
         # Compute the velocity of the body (Featherstone 5.7)
@@ -37,12 +42,12 @@ def fk(rbt: RigidBodyTree, q: jnp.ndarray, v: jnp.ndarray, a: jnp.ndarray):
         body_velocities.append(v_body)
 
         # Get the acceleration of the parent
-        a_parent = body_accelerations[body.parent.idx] if body.parent else SpatialMotionVector()
+        a_parent = body_accelerations[body.parent_idx + 1]
         # Compute the joint acceleration in world frame (Featherstone 3.40)
         a_joint = X_body * SpatialMotionVector(body.joint.S @ a_i)
         # Compute the acceleration of the body (Featherstone 5.4)
         a_body = a_parent + a_joint + v_body.cross(v_joint)
         body_accelerations.append(a_body)
 
-
-    return body_poses, body_velocities, body_accelerations
+    # NOTE: Drop the dummy body before returning
+    return body_poses[1:], body_velocities[1:], body_accelerations[1:]

@@ -6,6 +6,7 @@ from typing import Optional, Union
 import jax
 import jax.numpy as jnp
 
+from inertia import SpatialInertiaTensor
 from joint import Joint, Free
 from misc_math import normalize
 
@@ -14,13 +15,12 @@ from misc_math import normalize
 class Body:
     id: int
     joint: Joint = Free()
-    parent_id: Optional[int] = None
+    parent_id: int = -1  # -1 means no parent
     name: Optional[str] = None
 
     # Inertial properties
-    inertia: jnp.ndarray = jnp.zeros((3, 3))
+    inertia: SpatialInertiaTensor = SpatialInertiaTensor()
     mass: float = 0.0
-    com: jnp.ndarray = jnp.zeros(3)
 
     # For drawing
     visuals: Optional[list[dict]] = None
@@ -29,6 +29,7 @@ class Body:
     parent: Optional[Body] = None
     children: Optional[list[Body]] = None
     idx: Optional[int] = None
+    parent_idx: int = -1 # -1 means no parent
     q_idx: Optional[int] = None
     v_idx: Optional[int] = None
 
@@ -49,7 +50,7 @@ class RigidBodyTree:
         # Update the root and children of each body
         for body in bodies:
             body.children = []
-            if body.parent_id is None:
+            if body.parent_id == -1:
                 self.root = body
             else:
                 parent_body = self.id_to_body[body.parent_id]
@@ -76,12 +77,17 @@ class RigidBodyTree:
         v_idx = 0
         for body in self.bodies:
             body.idx = idx
+            body.parent_idx = body.parent.idx if body.parent else -1
             body.q_idx = q_idx
             body.v_idx = v_idx
             idx += 1
             q_idx += body.joint.nq
             v_idx += body.joint.nv
 
+
+# Define helper functions to make generalized position or velocity vectors for a
+# rigid body tree, joint, or body. If a prng_key is provided, the vector will
+# be random.
 
 def make_q(model: Union[Joint, Body, RigidBodyTree],
            prng_key = None) -> jnp.ndarray:
@@ -126,6 +132,10 @@ def make_v(model: Union[Joint, Body, RigidBodyTree],
         return jnp.zeros(nv) if prng_key is None else jax.random.normal(prng_key, (nv,))
     else:
         raise ValueError(f"Unknown model type: {type(model)}")
+
+
+# Define helper functions to get the segment of a generalized position or
+# velocity vector corresponding to a body
 
 def seg_q(body: Body, q: jnp.ndarray) -> jnp.ndarray:
     """Get the segment of q corresponding to the body's joint"""

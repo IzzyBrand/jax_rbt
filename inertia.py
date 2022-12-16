@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import jax.numpy as jnp
 
 from transforms import (
@@ -5,21 +7,21 @@ from transforms import (
     SpatialForceVector,
     SpatialTransform,
     SO3_hat,
+    mat_from_euler,
 )
 
 class SpatialInertiaTensor:
-    def __init__(self, I, m):
+    def __init__(self, mat=jnp.zeros((6, 6))):
         """Construct a spatial inertia tensor.
-
-        Args:
-            I (jnp.ndarray): 3x3 rotational inertia matrix
-            m (float): mass (kg)
         """
-        self.I, self.m = I, m
+        self.mat = mat
 
+    @staticmethod
+    def from_I_m(I: jnp.ndarray, m: float) -> SpatialInertiaTensor:
+        """Construct a SpatialInertiaTensor from 3x3 inertia matrix and mass."""
         # See Featherstone (2.62)
-        self.mat = jnp.block([[self.I, jnp.zeros((3, 3))],
-                              [jnp.zeros((3, 3)), self.m * jnp.eye(3)]])
+        return SpatialInertiaTensor(jnp.block([[I, jnp.zeros((3, 3))],
+                                               [jnp.zeros((3, 3)), m * jnp.eye(3)]]))
 
     def __mul__(self, v):
         # Spatial inertia is a mapping from spatial motion to spatial force.
@@ -31,21 +33,27 @@ class SpatialInertiaTensor:
         else:
             raise NotImplementedError
 
-    def __add__(self, other):
-        # TODO: implement addition of spatial inertia tensors
-        return self
+    def transform(self, X: SpatialTransform) -> SpatialInertiaTensor:
+        """Apply a spatial transform to the spatial inertia tensor."""
+        # Featherstone (2.66)
+        X_inv = X.inv().mat
+        return SpatialInertiaTensor(X_inv.T @ self.mat @ X_inv)
 
-    def offset(self, c: jnp.ndarray) -> jnp.ndarray:
-        """Compute the spatial inertia tensor at a point offset from the the
-        center of mass.
+    # def __add__(self, other):
+    #     # TODO: implement addition of spatial inertia tensors
+    #     return self
 
-        c is a vector from the offset frame to the center of mass.
-        """
-        # Featherstone (2.63)
-        c_cross = SO3_hat(c)
-        return jnp.block([
-            [self.I + self.m * c_cross @ c_cross.T, self.m * c_cross],
-            [self.m * c_cross.T, self.m * jnp.eye(3)]])
+    # def offset(self, c: jnp.ndarray) -> jnp.ndarray:
+    #     """Compute the spatial inertia tensor at a point offset from the the
+    #     center of mass.
+
+    #     c is a vector from the offset frame to the center of mass.
+    #     """
+    #     # Featherstone (2.63)
+    #     cx = SO3_hat(c)
+    #     return jnp.block([
+    #         [self.I + self.m * cx @ cx.T, self.m * cx],
+    #         [self.m * cx.T, self.m * jnp.eye(3)]])
 
 ###############################################################################
 # Inertial matrices for common shapes
@@ -65,3 +73,23 @@ def inertia_of_box(m:float, s: jnp.ndarray) -> jnp.ndarray:
 def inertia_of_sphere(m: float, r: float) -> jnp.ndarray:
     Ixx = Iyy = Izz = (2 / 5) * m * r ** 2
     return jnp.array([[Ixx, 0, 0], [0, Iyy, 0], [0, 0, Izz]])
+
+
+if __name__ == "__main__":
+    mass = 1.0
+    I = inertia_of_box(mass, jnp.array([1, 2, 3]))
+    inertia = SpatialInertiaTensor(I, mass)
+
+    # Check translation
+    # offset = jnp.array([1,2,3])
+    # # TODO: ok but why is this negative?
+    # X = SpatialTransform(jnp.eye(3), -offset)
+    # assert jnp.allclose(inertia.transform(X).mat,
+    #                     inertia.offset(offset))
+
+    # Check rotation
+    R = mat_from_euler(jnp.array([1, 2, 3]))
+    X = SpatialTransform(R, jnp.zeros(3))
+    assert jnp.allclose(inertia.transform(X).mat,
+                        SpatialInertiaTensor(R @ I @ R.T, mass).mat,
+                        atol=1e-6)

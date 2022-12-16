@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 
 from dynamics import id, fd_differential
-from inertia import inertia_of_cylinder, inertia_of_box
+from inertia import inertia_of_cylinder, inertia_of_box, SpatialInertiaTensor
 from integrate import euler_step
 from kinematics import fk
 from joint import Revolute, Fixed, Free
@@ -24,17 +24,19 @@ def make_simple_arm(num_joints: int,
     joint = Revolute(T_parent_to_child)
 
     # The center of mass of each body is between the two joints
-    com = 0.5 * t_z
+    T_body_to_com = SpatialTransform(x_rotation(jnp.pi/2), 0.5 * t_z)
 
     # Define the inertia assuming each body is a uniform density cylinder, twice
     # as long as it is wide
-    inertia = inertia_of_cylinder(body_mass, 0.25 * link_length, link_length)
+    radius = 0.25 * link_length
+    inertia = SpatialInertiaTensor.from_I_m(inertia_of_cylinder(
+        body_mass, radius, link_length), body_mass).transform(T_body_to_com)
 
     # Create the base body. The base joint is fixed, so it has no parent, and
     # does not require inertial properties.
     bodies = [Body(0,        # id
                    Fixed(),  # joint
-                   None,     # parent_id
+                   -1,     # parent_id (no parent)
                    "base", inertia, body_mass, jnp.zeros(3))]  # name
 
     # Create the rest of the bodies
@@ -44,40 +46,41 @@ def make_simple_arm(num_joints: int,
                            i - 1,        # parent_id
                            f"body_{i}",  # name
                            inertia,      # inertia
-                           body_mass,    # mass
-                           com))         # com
+                           body_mass))   # mass
 
-    T_body_to_geom = SpatialTransform(x_rotation(jnp.pi/2), 0.5 * t_z)
     for body in bodies:
         body.visuals =[{"type": "cylinder",
-                        "radius": 0.25 * link_length,
+                        "radius": radius,
                         "length": link_length,
-                        "offset": T_body_to_geom.homogenous()}]
+                        "offset": T_body_to_com.homogenous()}]
 
     # Create the tree
     return RigidBodyTree(bodies)
 
-
 def make_box(size, mass):
     """Make a box with a free joint"""
-    bodies = [Body(0, Free(), None, "box", inertia_of_box(mass, size), mass)]
-    bodies[0].visuals = [{"type": "box", "size": size}]
-    return RigidBodyTree(bodies)
+    inertia = SpatialInertiaTensor.from_I_m(inertia_of_box(mass, size), mass)
+    body = Body(0, Free(), -1, "box", inertia, mass)
+    body.visuals = [{"type": "box", "size": size}]
+    return RigidBodyTree([body])
 
 def make_pendulum(length, mass):
     """Make a pendulum with a revolute joint"""
     T_world_joint = SpatialTransform(x_rotation(jnp.pi/2), jnp.zeros(3))
+    t_joint_com = jnp.array([0, length, 0])
+    T_joint_com = SpatialTransform(jnp.eye(3), t_joint_com)
+    inertia = SpatialInertiaTensor.from_I_m(jnp.zeros((3, 3)), mass).transform(T_joint_com)
     body = Body(0,
                 Revolute(T_world_joint),
-                None,
-                "pendulum")
-    body.inertia = jnp.eye(3)#jnp.zeros((3,3))
-    body.mass = mass
-    T_joint_to_cylinder = SpatialTransform(jnp.eye(3), jnp.array([0, 0.5 * length, 0]))
-    T_joint_to_sphere = SpatialTransform(jnp.eye(3), jnp.array([0, length, 0]))
+                -1,
+                "pendulum",
+                inertia,
+                mass)
+
+    T_joint_cylinder = SpatialTransform(jnp.eye(3), t_joint_com)
     body.visuals = [
-        {"type": "cylinder", "radius": 0.1 * length, "length": length, "offset": T_joint_to_cylinder.homogenous()},
-        {"type": "sphere", "radius": 0.25 * length, "offset": T_joint_to_sphere.homogenous()}
+        {"type": "cylinder", "radius": 0.1 * length, "length": length, "offset": T_joint_cylinder.homogenous()},
+        {"type": "sphere", "radius": 0.25 * length, "offset": T_joint_com.homogenous()}
     ]
     return RigidBodyTree([body])
 
@@ -118,21 +121,19 @@ if __name__ == "__main__":
     jnp.set_printoptions(precision=6, suppress=True)
     # rbt = make_simple_arm(5)
     # rbt = make_box(jnp.array([0.1, 0.2, 0.3]), 1.0)
-    rbt = make_pendulum(0.1, 1.0)
-    key_gen = prng_key_gen()
+    rbt = make_pendulum(0.4, 1.0)
+    vis.add_rbt(rbt)
+
     q = make_q(rbt)
     v = make_v(rbt)
     tau = make_v(rbt)
 
     q = jnp.array([jnp.pi/2])
-    # tau = jnp.array([1e-6])
 
-    gravity_forces = [SpatialForceVector(jnp.array([0,0,0,0,0,-1000])) for _ in rbt.bodies]
+    gravity_forces = [SpatialForceVector(jnp.array([0,0,0,0,0,-9.81])) for _ in rbt.bodies]
 
-    vis.add_rbt(rbt)
     while True:
         vis.draw_rbt(rbt, q)
         a = fd_differential(rbt, q, v, tau, gravity_forces)
-        print("fd_differential:", a)
-        # print(f"q:\t{q}\nv:\t{v}\na:\t{a}\ntau:\t{tau}")
+        print("fd_differential:", a, "\n\n")
         q, v = euler_step(rbt, q, v, a, 0.01)
