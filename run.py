@@ -64,6 +64,23 @@ def make_box(size, mass):
     bodies[0].visuals = [{"type": "box", "size": size}]
     return RigidBodyTree(bodies)
 
+def make_pendulum(length, mass):
+    """Make a pendulum with a revolute joint"""
+    T_world_joint = SpatialTransform(x_rotation(jnp.pi/2), jnp.zeros(3))
+    body = Body(0,
+                Revolute(T_world_joint),
+                None,
+                "pendulum")
+    body.inertia = jnp.eye(3)#jnp.zeros((3,3))
+    body.mass = mass
+    T_joint_to_cylinder = SpatialTransform(jnp.eye(3), jnp.array([0, 0.5 * length, 0]))
+    T_joint_to_sphere = SpatialTransform(jnp.eye(3), jnp.array([0, length, 0]))
+    body.visuals = [
+        {"type": "cylinder", "radius": 0.1 * length, "length": length, "offset": T_joint_to_cylinder.homogenous()},
+        {"type": "sphere", "radius": 0.25 * length, "offset": T_joint_to_sphere.homogenous()}
+    ]
+    return RigidBodyTree([body])
+
 
 def run_and_print_dynamics(rbt):
     """Tries out various forward and inverse dynamics functions."""
@@ -98,24 +115,24 @@ def run_and_print_dynamics(rbt):
     print("a1:", a1)
 
 if __name__ == "__main__":
+    jnp.set_printoptions(precision=6, suppress=True)
     # rbt = make_simple_arm(5)
-    rbt = make_box(jnp.array([0.1, 0.2, 0.3]), 1.0)
+    # rbt = make_box(jnp.array([0.1, 0.2, 0.3]), 1.0)
+    rbt = make_pendulum(0.1, 1.0)
     key_gen = prng_key_gen()
     q = make_q(rbt)
     v = make_v(rbt)
     tau = make_v(rbt)
 
-    a = make_v(rbt)
-    a = a.at[5].set(-9.81)
+    q = jnp.array([jnp.pi/2])
+    # tau = jnp.array([1e-6])
 
-    v = v.at[:3].set(5)
-    v = v.at[5].set(3)
-
-    gravity_forces = [SpatialForceVector(jnp.array([0,0,0,0,0,-1])) for _ in rbt.bodies]
+    gravity_forces = [SpatialForceVector(jnp.array([0,0,0,0,0,-1000])) for _ in rbt.bodies]
 
     vis.add_rbt(rbt)
     while True:
         vis.draw_rbt(rbt, q)
-        # a = fd_differential(rbt, q, v, tau)
-        print(f"q:\t{q}\nv:\t{v}\na:\t{a}\ntau:\t{tau}")
+        a = fd_differential(rbt, q, v, tau, gravity_forces)
+        print("fd_differential:", a)
+        # print(f"q:\t{q}\nv:\t{v}\na:\t{a}\ntau:\t{tau}")
         q, v = euler_step(rbt, q, v, a, 0.01)

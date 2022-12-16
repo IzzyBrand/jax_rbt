@@ -8,9 +8,11 @@ from transforms import SpatialTransform
 
 vis = meshcat.Visualizer()
 
-def add_rbt(rbt: RigidBodyTree):
+def add_rbt(rbt: RigidBodyTree, draw_joints=True):
     """Add a rigid body tree to the visualizer"""
     for body in rbt.bodies:
+        if draw_joints:
+            vis[body.name].set_object(meshcat.geometry.triad(0.1))
         if body.visuals is None:
             continue
         for i, geom in enumerate(body.visuals):

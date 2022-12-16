@@ -56,6 +56,13 @@ def id(rbt, q, v, a, f_ext = None):
     net_forces = [compute_body_force_from_accleration(body, s_v, s_a) for body, s_v, s_a in zip(rbt.bodies, spatial_vs, spatial_as)]
     # 3. Compute the force transmitted across each joint
     joint_forces = compute_joint_forces_from_body_forces(rbt, net_forces, f_ext)
+    print("q[0]:\t", q[0])
+    print("v[0]:\t", v[0])
+    print("a[0]:\t", a[0])
+    print("Spatial_v[0]:\t", spatial_vs[0])
+    print("Spatial_a[0]:\t", spatial_as[0])
+    print("Net Forces[0]:\t", net_forces[0])
+    print("Joint Forces[0]:\t", joint_forces[0])
 
     # Convert the joint forces to generalized coordinates.  Featherstone (5.11)
     return jnp.concatenate([b.joint.S.T @ f_j.vec for b, f_j in zip(rbt.bodies, joint_forces)])
@@ -66,7 +73,9 @@ def fd_differential(rbt, q, v, tau, f_ext=None):
     See Featherstone section 6.1"""
     # Calculate the joint space bias force by computing the inverse dynamics
     # with zero acceleration. Featherstone (6.2)
-    C = id(rbt, q, v, make_v(rbt))
+    C = id(rbt, q, v, make_v(rbt), f_ext)
+
+    print("C:\t", C)
 
     # Calculate the joint space inertia matrix by using differential inverse
     # dynamics. Featherstone (6.4)
@@ -75,5 +84,8 @@ def fd_differential(rbt, q, v, tau, f_ext=None):
 
     H = jnp.stack([id_differential(alpha) for alpha in range(tau.shape[0])]).T
 
+    print("H:\t", H)
+
     # Solve H * qdd = tau - C for qdd Featherstone (6.1)
+    print("tau - C:\t", tau - C)
     return jnp.linalg.solve(H, tau - C)
