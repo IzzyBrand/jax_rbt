@@ -6,6 +6,13 @@ import numpy as np
 # Spatial Algebra
 ###############################################################################
 
+@jax.jit
+def smv_cross_smv(v1: jnp.ndarray, v2: jnp.ndarray):
+    """Cross product of two spatial motion vectors."""
+    w, v = v1.split(2)
+    return jnp.block([[SO3_hat(w), jnp.zeros((3, 3))],
+                      [SO3_hat(v), SO3_hat(w)]]) @ v2
+
 class SpatialMotionVector:
     def __init__(self, vec=None):
         self.vec = vec if vec is not None else jnp.zeros(6)

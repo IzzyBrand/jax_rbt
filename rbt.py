@@ -84,6 +84,9 @@ class RigidBodyTree:
             q_idx += body.joint.nq
             v_idx += body.joint.nv
 
+        # Store the parent idxs array for use in the forward kinematics
+        self.parent_idxs = jnp.array([b.parent_idx for b in self.bodies])
+
 
 # Define helper functions to make generalized position or velocity vectors for a
 # rigid body tree, joint, or body. If a prng_key is provided, the vector will
