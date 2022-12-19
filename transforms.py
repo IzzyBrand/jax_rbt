@@ -310,22 +310,3 @@ def qmul(q1, q0):
                       -x1*z0 + y1*w0 + z1*x0 + w1*y0,
                        x1*y0 - y1*x0 + z1*w0 + w1*z0])
 
-if __name__ == "__main__":
-    print("Check quat_from_mat and mat_from_quat")
-    mat = jnp.eye(3)
-    quat = quat_from_mat(mat)
-    mat2 = mat_from_quat(quat)
-    assert jnp.linalg.norm(quat) == 1
-    assert jnp.allclose(mat, mat2)
-
-    print("Checking make_homogenous_transform")
-    R = mat_from_euler(jnp.array([1,2,3]))
-    t = jnp.array([1,2,3])
-    T = make_homogenous_transform(R, t)
-    T_inv = make_homogenous_transform(R.T, -R.T @ t)
-    assert jnp.allclose(T @ T_inv, jnp.eye(4), atol=1e-6)
-
-    print("Checking SpatialTransform")
-    X = SpatialTransform(R, t)
-    [[print(i) for i in r] for r in (X * X.inv()).mat]
-    assert jnp.allclose((X * X.inv()).mat, jnp.eye(6), atol=1e-5)

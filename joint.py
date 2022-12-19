@@ -75,30 +75,3 @@ def joint_transform(joint: Joint, q: jnp.ndarray) -> SpatialTransform:
         raise NotImplementedError(f"Joint type {type(joint)} not implemented")
 
     return joint.T_in * T
-
-
-if __name__ == "__main__":
-    # Verify joint types
-    for j in [Fixed, Revolute, Free]:
-        print("Checking", j.__name__)
-        assert issubclass(j, Joint)
-
-        # Make sure S has the right shape
-        assert j.S.shape == (6, j.nv)
-        # Make sure Tc has the right shape
-        assert j.Tc.shape == (6, j.nc)
-        # Make sure Ta has the right shape
-        assert j.Ta.shape == (6, j.na)
-
-        # Make sure the subspaces have the right dimensions
-        # See Example 3.1 in Featherstone
-        assert j.nc + j.na == 6
-        assert j.nv == j.na
-
-        # Check that the constraint and motion subspaces are orthogonal
-        # Featherstone (3.36)
-        assert jnp.allclose(j.Tc.T @ j.S, 0)
-
-        # Check that the actuation and motion subpsaces are aligned
-        # Featherstone (3.35)
-        assert jnp.allclose(j.Ta.T @ j.S, jnp.eye(j.na))
