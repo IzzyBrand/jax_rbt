@@ -7,7 +7,7 @@ from kinematics import fk
 from joint import Revolute, Fixed, Free
 from misc_math import prng_key_gen
 from rbt import RigidBodyTree, Body, make_q, make_v
-from transforms import SpatialTransform, SpatialForceVector, x_rotation
+from transforms import SpatialTransform, SpatialForceVector, x_rotation, y_rotation
 import visualize as vis
 
 
@@ -71,7 +71,7 @@ def make_box(size, mass):
 
 def make_pendulum(length, mass):
     """Make a pendulum with a revolute joint"""
-    T_world_joint = SpatialTransform(x_rotation(jnp.pi/2), jnp.zeros(3))
+    T_world_joint = SpatialTransform(y_rotation(jnp.pi/2), jnp.zeros(3))
     t_joint_com = jnp.array([0, length, 0])
     T_joint_com = SpatialTransform(jnp.eye(3), t_joint_com)
     inertia = SpatialInertiaTensor.from_I_m(jnp.zeros((3, 3)), mass).transform(T_joint_com)
@@ -136,9 +136,10 @@ def simulate_gravity(rbt):
     a = make_v(rbt)
 
     # q = jnp.array([jnp.pi/4])
-    v = jnp.array([1, 1e-3, 1e-3, 0, 0, 0])
+    v = jnp.array([10.0])
+    # v = jnp.array([1, 1e-3, 1e-3, 0, 0, 0])
 
-    f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,0])) for _ in rbt.bodies]
+    f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,-9.81])) for _ in rbt.bodies]
 
     while True:
         vis.draw_rbt(rbt, q)
@@ -154,8 +155,8 @@ def simulate_gravity(rbt):
 if __name__ == "__main__":
     jnp.set_printoptions(precision=6, suppress=True)
     # rbt = make_simple_arm(5)
-    rbt = make_box(jnp.array([0.05, 0.2, 0.3]), 1.0)
-    # rbt = make_pendulum(0.4, 1.0)
+    # rbt = make_box(jnp.array([0.05, 0.2, 0.3]), 1.0)
+    rbt = make_pendulum(0.4, 1.0)
 
     # run_and_print_dynamics(rbt)
     simulate_gravity(rbt)

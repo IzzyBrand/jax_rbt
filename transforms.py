@@ -117,6 +117,31 @@ class SpatialTransform:
         return jnp.block([[self.R, self.t[:, None]],
                           [jnp.zeros((1, 3)), 1]])
 
+def make_spatial_E_r(E, r):
+    return jnp.block([[E, jnp.zeros((3,3))],
+                      [-E @ SO3_hat(r), E]])
+
+def make_spatial_R_t(R, t):
+    r = -R.T @ t
+    return make_spatial_E_r(R, r)
+
+def make_homogenous_R_t(R, t):
+    return jnp.block([[R, t[:, None]],
+                      [jnp.zeros((1, 3)), 1]])
+
+def make_homogenous_E_r(E, r):
+    t = -E.T @ r
+    return make_homogenous_R_t(E, t)
+
+def inv_spatial_E_r(E, r):
+    return jnp.block([[E.T, jnp.zeros((3,3))],
+                      [SO3_hat(r) @ E.T, E.T]])
+
+def inv_spatial_R_t(R, t):
+    r = -R.T @ t
+    return inv_spatial_E_r(R, r)
+
+
 ###############################################################################
 # SO3 lie group (rotation matrices)
 ###############################################################################

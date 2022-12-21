@@ -25,6 +25,8 @@ def fk(rbt: RigidBodyTree, q: jnp.ndarray, v: jnp.ndarray, a: jnp.ndarray):
         v_i = seg_v(body, v)
         a_i = seg_v(body, a)
 
+        print(body.parent_idx, body.name, SpatialMotionVector(body.joint.S @ v_i))
+
         # Compute, the pose, velocity, acceleration of the joint.
         # Assumes constant joint motion subspace and no bias velocity
 
