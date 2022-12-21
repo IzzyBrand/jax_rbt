@@ -33,15 +33,18 @@ def test_transforms():
         X = SpatialTransform(R, t)
         assert jnp.allclose((X * X.inv()).mat, jnp.eye(6), atol=1e-5)
 
-        print("Checking new SpatialTransforms")
-        X = make_spatial_R_t(R, t)
-        XX = X @ X
-        TT = T @ T
-        assert jnp.allclose(XX, make_spatial_R_t(TT[:3, :3], TT[:3, 3]), atol=1e-5)
-        X_inv = inv_spatial_R_t(R, t)
-        assert jnp.allclose(X @ X_inv, jnp.eye(6), atol=1e-5)
-        X_inv_2 = make_spatial_R_t(R.T, -R.T @ t)
-        assert jnp.allclose(X_inv, X_inv_2, atol=1e-5)
+        X_2 = SpatialTransform(X.mat)
+        assert jnp.allclose(X.t, X_2.t, atol=1e-5)
+
+        # print("Checking new SpatialTransforms")
+        # X = make_spatial_R_t(R, t)
+        # XX = X @ X
+        # TT = T @ T
+        # assert jnp.allclose(XX, make_spatial_R_t(TT[:3, :3], TT[:3, 3]), atol=1e-5)
+        # X_inv = inv_spatial_R_t(R, t)
+        # assert jnp.allclose(X @ X_inv, jnp.eye(6), atol=1e-5)
+        # X_inv_2 = make_spatial_R_t(R.T, -R.T @ t)
+        # assert jnp.allclose(X_inv, X_inv_2, atol=1e-5)
 
 
 @pytest.mark.parametrize("j", [Fixed, Revolute, Free])
@@ -71,7 +74,7 @@ def test_joints(j):
     assert jnp.allclose(j.Ta.T @ j.S, jnp.eye(j.na))
 
 
-@pytest.mark.skip("Refactoring")
+# @pytest.mark.skip("Refactoring")
 def test_fk():
     """Define a simple single-pendulum and verify that the forward kinematics
     works as expected. The pendulum rotates around the world x-axis and begins

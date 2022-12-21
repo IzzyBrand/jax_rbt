@@ -71,18 +71,20 @@ class SpatialTransform:
             self.R, self.t = args
             # See Feathersteone (2.24)
             # ┌                  ┐
-            # │ R              0 │
-            # │ -R@SO3_hat(t)  R │
+            # │ E              0 │
+            # │ -E@SO3_hat(r)  E │
             # └                  ┘
+            # where R = E and r = -E.T @ t
+            r = -self.R.T @ self.t
             self.mat = jnp.block([[self.R, jnp.zeros((3, 3))],
-                                  [-self.R @ SO3_hat(self.t), self.R]])
+                                  [-self.R @ SO3_hat(r), self.R]])
 
         # Init from a 6x6 matrix
         elif len(args) == 1:
             self.mat = args[0]
+            # Extract R and t by inverting the above formula
             self.R = self.mat[:3, :3]
-            self.t = SO3_vee(-self.R.T @ self.mat[3:, :3])
-            assert self.mat.shape == (6, 6)
+            self.t = self.R @ SO3_vee(self.R.T @ self.mat[3:, :3])
 
         # Default is the identity transform
         elif len(args) == 0:
@@ -117,29 +119,32 @@ class SpatialTransform:
         return jnp.block([[self.R, self.t[:, None]],
                           [jnp.zeros((1, 3)), 1]])
 
-def make_spatial_E_r(E, r):
-    return jnp.block([[E, jnp.zeros((3,3))],
-                      [-E @ SO3_hat(r), E]])
+# The following functions are not used currently, but were useful to sanity
+# check how Featherstone's spatial algebra works.
 
-def make_spatial_R_t(R, t):
-    r = -R.T @ t
-    return make_spatial_E_r(R, r)
+# def make_spatial_E_r(E, r):
+#     return jnp.block([[E, jnp.zeros((3,3))],
+#                       [-E @ SO3_hat(r), E]])
 
-def make_homogenous_R_t(R, t):
-    return jnp.block([[R, t[:, None]],
-                      [jnp.zeros((1, 3)), 1]])
+# def make_spatial_R_t(R, t):
+#     r = -R.T @ t
+#     return make_spatial_E_r(R, r)
 
-def make_homogenous_E_r(E, r):
-    t = -E.T @ r
-    return make_homogenous_R_t(E, t)
+# def make_homogenous_R_t(R, t):
+#     return jnp.block([[R, t[:, None]],
+#                       [jnp.zeros((1, 3)), 1]])
 
-def inv_spatial_E_r(E, r):
-    return jnp.block([[E.T, jnp.zeros((3,3))],
-                      [SO3_hat(r) @ E.T, E.T]])
+# def make_homogenous_E_r(E, r):
+#     t = -E.T @ r
+#     return make_homogenous_R_t(E, t)
 
-def inv_spatial_R_t(R, t):
-    r = -R.T @ t
-    return inv_spatial_E_r(R, r)
+# def inv_spatial_E_r(E, r):
+#     return jnp.block([[E.T, jnp.zeros((3,3))],
+#                       [SO3_hat(r) @ E.T, E.T]])
+
+# def inv_spatial_R_t(R, t):
+#     r = -R.T @ t
+#     return inv_spatial_E_r(R, r)
 
 
 ###############################################################################

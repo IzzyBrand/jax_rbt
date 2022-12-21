@@ -136,7 +136,7 @@ def simulate_gravity(rbt):
     a = make_v(rbt)
 
     # q = jnp.array([jnp.pi/4])
-    v = jnp.array([10.0])
+    # v = jnp.array([10.0])
     # v = jnp.array([1, 1e-3, 1e-3, 0, 0, 0])
 
     f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,-9.81])) for _ in rbt.bodies]
