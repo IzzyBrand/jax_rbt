@@ -20,8 +20,8 @@ def test_transforms():
 
         print("Check quat_from_mat and mat_from_quat")
         q2 = quat_from_mat(R)
-        assert jnp.isclose(jnp.linalg.norm(q2), 1)
         R2 = mat_from_quat(q2)
+        assert jnp.isclose(jnp.linalg.norm(q2), 1)
         assert jnp.allclose(R, R2, atol=1e-5)
 
         print("Checking make_homogenous_transform")
@@ -31,9 +31,9 @@ def test_transforms():
 
         print("Checking SpatialTransform")
         X = SpatialTransform(R, t)
-        assert jnp.allclose((X * X.inv()).mat, jnp.eye(6), atol=1e-5)
-
         X_2 = SpatialTransform(X.mat)
+        assert jnp.allclose((X * X.inv()).mat, jnp.eye(6), atol=1e-5)
+        assert jnp.allclose(X.inv().mat.T, X.tinv(), atol=1e-5)
         assert jnp.allclose(X.t, X_2.t, atol=1e-5)
 
         # print("Checking new SpatialTransforms")
@@ -78,29 +78,15 @@ def test_joints(j):
 def test_fk():
     """Define a simple single-pendulum and verify that the forward kinematics
     works as expected. The pendulum rotates around the world x-axis and begins
-    pointed directly along the world y-axis. It has a point m at the end."""
-    m = 1.0
+    pointed directly along the world y-axis."""
     l = 1.0
     T_w_j = SpatialTransform(y_rotation(jnp.pi/2), jnp.zeros(3))
     T_j_m = SpatialTransform(jnp.eye(3), jnp.array([0, l, 0]))
 
-    rod_with_mass = Body(0,
-                Revolute(T_w_j),
-                -1, # No parent
-                "pendulum",
-                SpatialInertiaTensor.from_I_m(jnp.zeros((3, 3)), m).transform(T_j_m),
-                m)
-    # Define another body at the end of the pendulum with no mass, so we can
-    # easily compute the state of the end-frame.
-    end = Body(1,
-                Fixed(T_j_m),
-                0, # Parent is the rod
-                "end",
-                SpatialInertiaTensor(),
-                0.0)
+    rod = Body(0, Revolute(T_w_j), -1, "pendulum")
+    end = Body(1, Fixed(T_j_m), 0, "end")
 
-
-    rbt = RigidBodyTree([rod_with_mass, end])
+    rbt = RigidBodyTree([rod, end])
 
     # Check that the forward kinematics works as expected with zero inputs
     q = jnp.array([0.0])
@@ -121,5 +107,9 @@ def test_fk():
     body_poses, body_vels, body_accs = fk(rbt, q, v, a)
     assert jnp.allclose(body_poses[0].mat, T_w_j.mat)
     assert jnp.allclose(body_poses[1].mat, T_w_j.mat @ T_j_m.mat)
-    assert jnp.allclose(body_vels[0].vec, jnp.array([1, 0, 0, 0, 0, 0]), atol=1e-6)
-    assert jnp.allclose(body_vels[1].vec, jnp.array([1, 0, 0, 0, 0, 1]), atol=1e-6)
+
+    # Convert the body-frame velocities to world-frame velocities. Note that we
+    # don't consider the body translation, just the orientation.
+    world_vels = [SpatialTransform(X_i.R, jnp.zeros(3)) * v_i for X_i, v_i in zip(body_poses, body_vels)]
+    assert jnp.allclose(world_vels[0].vec, jnp.array([1, 0, 0, 0, 0, 0]), atol=1e-6)
+    assert jnp.allclose(world_vels[1].vec, jnp.array([1, 0, 0, 0, 0, 1]), atol=1e-6)

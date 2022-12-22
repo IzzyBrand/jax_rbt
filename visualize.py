@@ -7,7 +7,7 @@ from transforms import SpatialTransform
 
 
 vis = meshcat.Visualizer()
-vis.open()
+# vis.open()
 
 def add_rbt(rbt: RigidBodyTree, draw_joints=True):
     """Add a rigid body tree to the visualizer"""

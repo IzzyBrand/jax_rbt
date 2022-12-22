@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -94,18 +96,25 @@ class SpatialTransform:
         else:
             raise NotImplementedError
 
-    def inv(self):
+    def inv(self) -> SpatialTransform:
         """Inverse of the transform."""
         return SpatialTransform(self.R.T, -self.R.T @ self.t)
 
+    def tinv(self) -> jnp.ndarray:
+        """Transpose of the inverse of the transform."""
+        # Swap the top right and bottom left blocks. Featherstone (2.25)
+        return jnp.block([[self.mat[:3, :3], self.mat[3:, :3]],
+                          [self.mat[:3, 3:], self.mat[3:, 3:]]])
+
     def __mul__(self, other):
         if isinstance(other, SpatialTransform):
+            # return SpatialTransform(self.mat @ other.mat)
             return SpatialTransform(self.R @ other.R,
                                     self.R @ other.t + self.t)
         elif isinstance(other, SpatialMotionVector):
             return SpatialMotionVector(self.mat @ other.vec)
         elif isinstance(other, SpatialForceVector):
-            return SpatialForceVector(self.inv().mat.T @ other.vec)
+            return SpatialForceVector(self.tinv() @ other.vec)
         elif isinstance(other, jnp.ndarray):
             return self.mat @ other
         else:

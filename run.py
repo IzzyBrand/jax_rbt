@@ -136,15 +136,15 @@ def simulate_gravity(rbt):
     a = make_v(rbt)
 
     # q = jnp.array([jnp.pi/4])
-    # v = jnp.array([10.0])
+    v = jnp.array([10.0])
     # v = jnp.array([1, 1e-3, 1e-3, 0, 0, 0])
 
     f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,-9.81])) for _ in rbt.bodies]
 
     while True:
         vis.draw_rbt(rbt, q)
-        a = fd_differential(rbt, q, v, tau, f_ext)
-        print("fd_differential:", a, "\n\n")
+        # a = fd_differential(rbt, q, v, tau, f_ext)
+        # print("fd_differential:", a, "\n\n")
         q, v = euler_step(rbt, q, v, a, 0.01)
 
 
