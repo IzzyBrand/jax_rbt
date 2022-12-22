@@ -3,9 +3,9 @@ import jax.numpy as jnp
 from jax.nn import one_hot
 
 from inertia import SpatialInertiaTensor
-from joint import Joint, Free, Revolute
+from joint import Joint, Free, Revolute, joint_transform
 from kinematics import fk
-from rbt import RigidBodyTree, Body, make_v
+from rbt import RigidBodyTree, Body, make_v, seg_q
 from transforms import (
     SpatialMotionVector,
     SpatialForceVector,
@@ -25,34 +25,31 @@ def id(rbt, q, v, a, f_ext) -> jnp.ndarray:
 
     # 2. Compute the forces on each body required to achieve the accelerations
     net_forces = []
-    for body, X, s_v, s_a in zip(rbt.bodies, body_poses, body_vels, body_accs):
+    for body, X_i, V_i, A_i in zip(rbt.bodies, body_poses, body_vels, body_accs):
         # Get the spatial inertia tensor of the body in the world frame
-        I = body.inertia.transform(X).mat
+        I = body.inertia.transform(X_i).mat
         # Compute the force on the body. Featherstone (5.9)
         # TODO: add multiplication functions to SpatialInertiaTensor
-        net_forces.append(SpatialForceVector(I @ s_a.vec + s_v.skew() @ I @ s_v.vec))
+        net_forces.append(SpatialForceVector(I @ A_i.vec + V_i.skew() @ I @ V_i.vec))
 
 
     # 3. Compute the force transmitted across each joint
+    # Featherstone (5.20)
     joint_forces = [None for _ in rbt.bodies]
 
     for body in reversed(rbt.bodies):
+        X_i = body_poses[body.idx]
         # Sum the forces that this body is transmitting to its children
-        child_joint_forces = sum((joint_forces[child.idx] for child in body.children), start=SpatialForceVector())
-        # Compute the force transmitted from the parent to this body
-        # Featherstone (5.10)
-        joint_forces[body.idx] = net_forces[body.idx] - f_ext[body.idx] + child_joint_forces
+        child_joint_forces = SpatialForceVector()
+        for child in body.children:
+            # Get the transform to the child
+            X_i_child = joint_transform(child.joint, seg_q(child, q))
+            # Express the child force in body_i coordinates
+            child_joint_forces += X_i_child.inv() * joint_forces[child.idx]
 
-    # print("q[0]:\t", q[0])
-    # print("v[0]:\t", v[0])
-    # print("a[0]:\t", a[0])
-    # print("X[0]:\t", body_poses[0])
-    # print("s_v[0]:\t", body_vels[0])
-    # print("s_a[0]:\t", body_accs[0])
-    # print("f_ext[0]:\t", f_ext[0])
-    # print("Net Forces[0]:\t", net_forces[0])
-    # print("Joint Forces[0]:\t", body_poses[0].inv() * joint_forces[0])
-    # print("joint.S.T\t", rbt.bodies[0].joint.S.T)
+        # Compute the force transmitted from the parent to this body
+        joint_forces[body.idx] = net_forces[body.idx] - X_i.inv() * f_ext[body.idx] + child_joint_forces
+
 
     # TODO: investigate why this is not working
 
