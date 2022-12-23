@@ -41,8 +41,8 @@ def make_simple_arm(num_joints: int,
     # does not require inertial properties.
     bodies = [Body(0,        # id
                    Fixed(),  # joint
-                   -1,     # parent_id (no parent)
-                   "base", inertia, body_mass, jnp.zeros(3))]  # name
+                   -1,       # parent_id (no parent)
+                   "base", inertia, jnp.zeros(3))]  # name
 
     # Create the rest of the bodies
     for i in range(1, num_joints + 1):
@@ -50,8 +50,7 @@ def make_simple_arm(num_joints: int,
                            joint,        # joint
                            i - 1,        # parent_id
                            f"body_{i}",  # name
-                           inertia,      # inertia
-                           body_mass))   # mass
+                           inertia))     # inertia
 
     for body in bodies:
         body.visuals =[{"type": "cylinder",
@@ -65,7 +64,7 @@ def make_simple_arm(num_joints: int,
 def make_box(size, mass):
     """Make a box with a free joint"""
     inertia = SpatialInertiaTensor.from_I_m(inertia_of_box(mass, size), mass)
-    body = Body(0, Free(), -1, "box", inertia, mass)
+    body = Body(0, Free(), -1, "box", inertia)
     body.visuals = [{"type": "box", "size": size}]
     return RigidBodyTree([body])
 
@@ -79,8 +78,7 @@ def make_pendulum(length, mass):
                 Revolute(T_world_joint),
                 -1,
                 "pendulum",
-                inertia,
-                mass)
+                inertia)
 
     T_joint_cylinder = SpatialTransform(jnp.eye(3), 0.5 * t_joint_com)
     body.visuals = [

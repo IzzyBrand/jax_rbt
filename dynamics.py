@@ -23,40 +23,36 @@ def id(rbt, q, v, a, f_ext) -> jnp.ndarray:
     # 1. Compute the velocity, and acceleration of each body
     body_poses, body_vels, body_accs = fk(rbt, q, v, a)
 
-    # 2. Compute the forces on each body required to achieve the accelerations
-    net_forces = []
+    # 2. Compute the forces on each body (in the body frame) required to achieve
+    #    the accelerations
+    body_forces = []
     for body, X_i, V_i, A_i in zip(rbt.bodies, body_poses, body_vels, body_accs):
-        # Get the spatial inertia tensor of the body in the world frame
-        I = body.inertia.transform(X_i).mat
-        # Compute the force on the body. Featherstone (5.9)
+        # Get the spatial inertia tensor of the body
+        I = body.inertia.mat
+        # Compute the force on the body to produce the acceleration. Featherstone (5.9)
         # TODO: add multiplication functions to SpatialInertiaTensor
-        net_forces.append(SpatialForceVector(I @ A_i.vec + V_i.skew() @ I @ V_i.vec))
+        f_a = SpatialForceVector(I @ A_i.vec + V_i.skew() @ I @ V_i.vec)
+        # Remove the external force from the body
+        f_x = X_i.rotation().inv() * f_ext[body.idx]
+        body_forces.append(f_a - f_x)
+
+        print(f"Accel {body.name}\t{A_i.vec}")
+        print(f"f_acc {body.name}\t{f_a.vec}")
+        print(f"f_ext {body.name}\t{f_x.vec}")
 
 
-    # 3. Compute the force transmitted across each joint
-    # Featherstone (5.20)
-    joint_forces = [None for _ in rbt.bodies]
-
-    for body in reversed(rbt.bodies):
-        X_i = body_poses[body.idx]
-        # Sum the forces that this body is transmitting to its children
-        child_joint_forces = SpatialForceVector()
-        for child in body.children:
-            # Get the transform to the child
-            X_i_child = joint_transform(child.joint, seg_q(child, q))
-            # Express the child force in body_i coordinates
-            child_joint_forces += X_i_child.inv() * joint_forces[child.idx]
-
-        # Compute the force transmitted from the parent to this body
-        joint_forces[body.idx] = net_forces[body.idx] - X_i.inv() * f_ext[body.idx] + child_joint_forces
-
-
-    # TODO: investigate why this is not working
-
-    # Convert the joint forces to generalized coordinates.  Featherstone (5.11)
+    # 3. Compute the force transmitted across each joint. Featherstone (5.20)
     taus = []
-    for body, X, f_j in zip(rbt.bodies, body_poses, joint_forces):
-        taus.append(body.joint.S.T @ (X.inv() * f_j).vec)
+    for body in reversed(rbt.bodies):
+        f_body = body_forces[body.idx]
+        # Convert the forces to generalized coordinates. Featherstone (5.11)
+        taus.append(body.joint.S.T @ f_body.vec)
+        # If the body has a parent, apply the force to the parent
+        if body.parent_idx != -1:
+            # Get the transform from the parent to this body
+            X_parent_body = joint_transform(body.joint, seg_q(body, q))
+            # Apply the force from the body to the parent
+            body_forces[body.parent_idx] += X_parent_body * f_body
 
     return jnp.concatenate(taus)
 

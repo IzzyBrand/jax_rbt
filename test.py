@@ -2,9 +2,10 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-from misc_math import *
+from dynamics import *
 from joint import *
 from kinematics import *
+from misc_math import *
 from rbt import *
 from transforms import *
 
@@ -83,7 +84,7 @@ def test_fk():
     T_w_j = SpatialTransform(y_rotation(jnp.pi/2), jnp.zeros(3))
     T_j_m = SpatialTransform(jnp.eye(3), jnp.array([0, l, 0]))
 
-    rod = Body(0, Revolute(T_w_j), -1, "pendulum")
+    rod = Body(0, Revolute(T_w_j), -1, "rod")
     end = Body(1, Fixed(T_j_m), 0, "end")
 
     rbt = RigidBodyTree([rod, end])
@@ -110,6 +111,45 @@ def test_fk():
 
     # Convert the body-frame velocities to world-frame velocities. Note that we
     # don't consider the body translation, just the orientation.
-    world_vels = [SpatialTransform(X_i.R, jnp.zeros(3)) * v_i for X_i, v_i in zip(body_poses, body_vels)]
+    world_vels = [X_i.rotation() * v_i for X_i, v_i in zip(body_poses, body_vels)]
     assert jnp.allclose(world_vels[0].vec, jnp.array([1, 0, 0, 0, 0, 0]), atol=1e-6)
     assert jnp.allclose(world_vels[1].vec, jnp.array([1, 0, 0, 0, 0, 1]), atol=1e-6)
+
+
+def test_id():
+    """Define a simple single-pendulum and verify that the inverse dynamics
+    works as expected. The pendulum rotates around the world x-axis and begins
+    pointed directly along the world y-axis. There a point mass at the end of
+    the pendulum."""
+
+    l = 1.23
+    m = 4.56
+    T_w_j = SpatialTransform(y_rotation(jnp.pi/2), jnp.zeros(3))
+    T_j_m = SpatialTransform(jnp.eye(3), jnp.array([0, l, 0]))
+
+    rod = Body(0, Revolute(T_w_j), -1, "rod")
+    end = Body(1, Fixed(T_j_m), 0, "end", SpatialInertiaTensor.from_m(m))
+
+    rbt = RigidBodyTree([rod, end])
+
+    # Check that the inverse dynamics works as expected with zero inputs
+    q = jnp.array([0.0])
+    v = jnp.array([0.0])
+    a = jnp.array([0.0])
+    f_ext = [SpatialForceVector() for _ in rbt.bodies]
+
+    tau = id(rbt, q, v, a, f_ext)
+    assert jnp.allclose(tau, jnp.zeros((1,)))
+
+    # Now set the acceleration to 1 rad/s^2 and check that the inverse dynamics
+    # finds the expected torque
+    a = jnp.array([1.0])
+    tau = id(rbt, q, v, a, f_ext)
+    print(tau)
+    assert jnp.allclose(tau, jnp.array([m * l**2]), atol=1e-6)
+
+    # Now set the external force to apply a z-force of 1 N and check that the
+    # inverse dynamics finds the expected torque
+    f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,-1])) for _ in rbt.bodies]
+    tau = id(rbt, q, v, a, f_ext)
+    assert jnp.allclose(tau, jnp.array([l + m * l**2]), atol=1e-6)

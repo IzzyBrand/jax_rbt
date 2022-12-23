@@ -96,6 +96,10 @@ class SpatialTransform:
         else:
             raise NotImplementedError
 
+    def rotation(self) -> SpatialTransform:
+        """Return the rotation part of the transform."""
+        return SpatialTransform(self.R, jnp.zeros(3))
+
     def inv(self) -> SpatialTransform:
         """Inverse of the transform."""
         return SpatialTransform(self.R.T, -self.R.T @ self.t)

@@ -23,6 +23,12 @@ class SpatialInertiaTensor:
         return SpatialInertiaTensor(jnp.block([[I, jnp.zeros((3, 3))],
                                                [jnp.zeros((3, 3)), m * jnp.eye(3)]]))
 
+
+    @staticmethod
+    def from_m(m: float) -> SpatialInertiaTensor:
+        """Construct a SpatialInertiaTensor from mass."""
+        return SpatialInertiaTensor.from_I_m(jnp.zeros((3, 3)), m)
+
     def __mul__(self, v):
         # Spatial inertia is a mapping from spatial motion to spatial force.
         # Featherstone section 2.13

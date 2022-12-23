@@ -20,7 +20,6 @@ class Body:
 
     # Inertial properties
     inertia: SpatialInertiaTensor = SpatialInertiaTensor()
-    mass: float = 0.0
 
     # For drawing
     visuals: Optional[list[dict]] = None
