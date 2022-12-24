@@ -69,23 +69,22 @@ def make_box(size, mass):
     return RigidBodyTree([body])
 
 def make_pendulum(length, mass):
-    """Make a pendulum with a revolute joint"""
-    T_world_joint = SpatialTransform(y_rotation(jnp.pi/2), jnp.zeros(3))
-    t_joint_com = jnp.array([0, length, 0])
-    T_joint_com = SpatialTransform(jnp.eye(3), t_joint_com)
-    inertia = SpatialInertiaTensor.from_I_m(jnp.zeros((3, 3)), mass).transform(T_joint_com)
-    body = Body(0,
-                Revolute(T_world_joint),
-                -1,
-                "pendulum",
-                inertia)
+    """The pendulum rotates around the world x-axis and begins pointed directly
+    along the world y-axis. There a point mass at the end of the pendulum."""
+    T_w_j = SpatialTransform(y_rotation(jnp.pi/2), jnp.zeros(3))
+    T_j_m = SpatialTransform(jnp.eye(3), jnp.array([0, length, 0]))
 
-    T_joint_cylinder = SpatialTransform(jnp.eye(3), 0.5 * t_joint_com)
-    body.visuals = [
-        {"type": "cylinder", "radius": 0.03 * length, "length": length, "offset": T_joint_cylinder.homogenous()},
-        {"type": "sphere", "radius": 0.1 * length, "offset": T_joint_com.homogenous()}
-    ]
-    return RigidBodyTree([body])
+    rod = Body(0, Revolute(T_w_j), -1, "rod")
+    end = Body(1, Fixed(T_j_m), 0, "end", SpatialInertiaTensor.from_m(mass))
+
+    rod.visuals = [{
+        "type": "cylinder",
+        "radius": 0.03 * length,
+        "length": length,
+        "offset": SpatialTransform(jnp.eye(3), jnp.array([0, 0.5 * length, 0])).homogenous()
+        }]
+    end.visuals = [{"type": "sphere", "radius": 0.1 * length}]
+    return RigidBodyTree([rod, end])
 
 
 ################################################################################
@@ -131,12 +130,6 @@ def simulate_gravity(rbt):
     q = make_q(rbt)
     v = make_v(rbt)
     tau = make_v(rbt)
-    a = make_v(rbt)
-
-    # q = jnp.array([jnp.pi/4])
-    # v = jnp.array([10.0])
-    # v = jnp.array([1, 1e-3, 1e-3, 0, 0, 0])
-
     f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,-9.81])) for _ in rbt.bodies]
 
     while True:
