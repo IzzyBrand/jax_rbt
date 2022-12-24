@@ -36,11 +36,6 @@ def id(rbt, q, v, a, f_ext) -> jnp.ndarray:
         f_x = X_i.rotation().inv() * f_ext[body.idx]
         body_forces.append(f_a - f_x)
 
-        print(f"Accel {body.name}\t{A_i.vec}")
-        print(f"f_acc {body.name}\t{f_a.vec}")
-        print(f"f_ext {body.name}\t{f_x.vec}")
-
-
     # 3. Compute the force transmitted across each joint. Featherstone (5.20)
     taus = []
     for body in reversed(rbt.bodies):
@@ -71,8 +66,24 @@ def fd_differential(rbt, q, v, tau, f_ext):
 
     H = jnp.stack([id_differential(alpha) for alpha in range(tau.shape[0])]).T
 
-    # print("C:\t", C)
-    # print("H:\t", H)
-    # print("tau:\t", tau)
     # Solve H * qdd = tau - C for qdd Featherstone (6.1)
     return jnp.linalg.solve(H, tau - C)
+
+
+def fd_composite(rbt, q, v, tau, f_ext):
+    """Forward dynamics using the composite rigid body algorithm.
+    See Featherstone section 6.2"""
+
+    # TODO(@ib): store the velocity dimension in the RigidBodyTree
+    nv = sum([b.joint.nv for b in rbt.bodies])
+    H = jnp.zeros((nv, nv))
+
+    # Init the composite inertia with the inertia of each body
+    I_c = [b.inertia for b in rbt.bodies]
+
+    for body in rbt.bodies:
+        if body.parent_idx != -1:
+            X_parent_body = joint_transform(body.joint, seg_q(body, q))
+            I_c[body.parent_idx] += I_c[body.idx].transform(X_parent_body)
+
+        F = I_c[body].mat @ body.joint.S

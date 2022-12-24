@@ -1,6 +1,10 @@
+from functools import partial
+import timeit
+
+import jax
 import jax.numpy as jnp
 
-from dynamics import id, fd_differential
+from dynamics import id, fd_differential, fd_composite
 from inertia import inertia_of_cylinder, inertia_of_box, SpatialInertiaTensor
 from integrate import euler_step
 from kinematics import fk
@@ -98,6 +102,7 @@ def run_and_print_dynamics(rbt):
     q0 = make_q(rbt, next(key_gen))
     v0 = make_v(rbt, next(key_gen))
     a0 = make_v(rbt, next(key_gen))
+    f_ext = [SpatialForceVector() for _ in rbt.bodies]
     print("q0:", q0)
     print("v0:", v0)
     print("a0:", a0)
@@ -114,27 +119,55 @@ def run_and_print_dynamics(rbt):
 
     # Now do inverse dynamics to compute the joint forces required to achieve
     # the desired accelerations
-    tau = id(rbt, q0, v0, a0)
+    tau = id(rbt, q0, v0, a0, f_ext)
     print("tau:", tau)
 
     # Now do forward dynamics to compute the joint accelerations given the
     # joint positions, velocities, and forces
-    a1 = fd_differential(rbt, q0, v0, tau)
+    a1 = fd_differential(rbt, q0, v0, tau, f_ext)
     print("a0:", a0)
     print("a1:", a1)
 
+@partial(jax.jit, static_argnames=['v'])
+def test_fn(T, v):
+    R, t = T
+    return SpatialTransform(R, t) * v
+
+def timing_test(rbt):
+
+    T = (jnp.eye(3), jnp.zeros(3))
+    v = SpatialForceVector()
+    test_fn(T, v)
+
+
+    # key_gen = prng_key_gen()
+    # q0 = make_q(rbt, next(key_gen))
+    # v0 = make_v(rbt, next(key_gen))
+    # a0 = make_v(rbt, next(key_gen))
+
+    # fn = lambda: fk(rbt, q0, v0, a0)
+    # n = 10
+    # r = 10
+    # times = timeit.repeat(fn, number=n, repeat=r)
+    # print(f"Best mean: {min(times) / n}")
+
+
 def simulate_gravity(rbt):
     """Simulates the dynamics of a rigid body tree under gravity."""
-    vis.add_rbt(rbt)
+    vis.start()
+    vis.add_rbt(rbt, draw_bodies=False)
 
     q = make_q(rbt)
     v = make_v(rbt)
     tau = make_v(rbt)
     f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,-9.81])) for _ in rbt.bodies]
 
+    q = jnp.ones_like(q)
+
     while True:
         vis.draw_rbt(rbt, q)
         a = fd_differential(rbt, q, v, tau, f_ext)
+        fd_composite(rbt, q, v, tau, f_ext)
         print("fd_differential:", a, "\n\n")
         q, v = euler_step(rbt, q, v, a, 0.01)
 
@@ -145,9 +178,10 @@ def simulate_gravity(rbt):
 
 if __name__ == "__main__":
     jnp.set_printoptions(precision=6, suppress=True)
-    # rbt = make_simple_arm(5)
+    rbt = make_simple_arm(5)
     # rbt = make_box(jnp.array([0.05, 0.2, 0.3]), 1.0)
-    rbt = make_pendulum(0.4, 1.0)
+    # rbt = make_pendulum(0.4, 1.0)
 
     # run_and_print_dynamics(rbt)
-    simulate_gravity(rbt)
+    timing_test(rbt)
+    # simulate_gravity(rbt)

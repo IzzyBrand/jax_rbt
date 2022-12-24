@@ -6,15 +6,14 @@ from joint import joint_transform
 from transforms import SpatialTransform
 
 
-vis = meshcat.Visualizer()
-# vis.open()
+start = meshcat.Visualizer
 
-def add_rbt(rbt: RigidBodyTree, draw_joints=True):
+def add_rbt(rbt: RigidBodyTree, draw_joints=True, draw_bodies=True):
     """Add a rigid body tree to the visualizer"""
     for body in rbt.bodies:
         if draw_joints:
             vis[body.name].set_object(meshcat.geometry.triad(0.1))
-        if body.visuals is None:
+        if body.visuals is None or not draw_bodies:
             continue
         for i, geom in enumerate(body.visuals):
             if geom["type"] == "box":
