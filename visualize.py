@@ -31,6 +31,7 @@ def add_rbt(vis, rbt: RigidBodyTree, draw_joints=True, draw_bodies=True):
             if "offset" in geom:
                 vis[body.name][str(i)].set_transform(np.array(geom["offset"], dtype=float))
 
+
 def draw_rbt(vis, rbt: RigidBodyTree, q):
     body_poses = []
     for body in rbt.bodies:

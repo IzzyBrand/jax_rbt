@@ -8,7 +8,7 @@ from transforms import (
     SpatialForceVector,
     SpatialTransform,
     SO3_hat,
-    mat_from_euler,
+    SO3_from_euler,
 )
 
 @register_pytree_node_class
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     #                     inertia.offset(offset))
 
     # Check rotation
-    R = mat_from_euler(jnp.array([1, 2, 3]))
+    R = SO3_from_euler(jnp.array([1, 2, 3]))
     X = SpatialTransform(R, jnp.zeros(3))
     assert jnp.allclose(inertia.transform(X).mat,
                         SpatialInertiaTensor(R @ I @ R.T, mass).mat,

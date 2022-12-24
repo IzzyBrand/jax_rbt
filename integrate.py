@@ -1,3 +1,6 @@
+from functools import partial
+
+import jax
 import jax.numpy as jnp
 
 from rbt import RigidBodyTree, seg_q, seg_v
@@ -5,7 +8,7 @@ from joint import Joint, Fixed, Revolute, Free
 from transforms import SO3_exp, mat_from_quat, quat_from_mat
 
 
-
+@partial(jax.jit, static_argnames=['rbt'])
 def euler_step(rbt: RigidBodyTree, q, v, a, dt):
     """Euler integration step"""
     # Different joints have different generalized positions and velocities,

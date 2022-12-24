@@ -2,8 +2,6 @@ from __future__ import annotations
 from collections import namedtuple
 
 
-
-
 import jax
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
@@ -252,7 +250,8 @@ def z_rotation(theta: float) -> jnp.ndarray:
                       [jnp.sin(theta), jnp.cos(theta), 0],
                       [0, 0, 1]])
 
-def mat_from_euler(euler: jnp.ndarray) -> jnp.ndarray:
+@jax.jit
+def SO3_from_euler(euler: jnp.ndarray) -> jnp.ndarray:
     return z_rotation(euler[2]) @ y_rotation(euler[1]) @ x_rotation(euler[0])
 
 @jax.jit
@@ -270,8 +269,7 @@ def SO3_vee(S: jnp.ndarray) -> jnp.ndarray:
     w = jnp.array([S[2, 1], S[0, 2], S[1, 0]])
     return w
 
-# TODO: Figure out how to jit this
-# @jax.jit
+@jax.jit
 def SO3_exp(w: jnp.ndarray) -> jnp.ndarray:
     # A Micro Lie Theory (Example 4)
     # Compute the magnitude of the rotation

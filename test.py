@@ -10,6 +10,7 @@ from rbt import *
 from run import make_pendulum
 from transforms import *
 
+
 def test_transforms():
     """Test that the transforms module works as expected by inverting and
     composing various transform types"""
@@ -37,16 +38,6 @@ def test_transforms():
         assert jnp.allclose((X * X.inv()).mat, jnp.eye(6), atol=1e-5)
         assert jnp.allclose(X.inv().mat.T, X.tinv(), atol=1e-5)
         assert jnp.allclose(X.t, X_2.t, atol=1e-5)
-
-        # print("Checking new SpatialTransforms")
-        # X = make_spatial_R_t(R, t)
-        # XX = X @ X
-        # TT = T @ T
-        # assert jnp.allclose(XX, make_spatial_R_t(TT[:3, :3], TT[:3, 3]), atol=1e-5)
-        # X_inv = inv_spatial_R_t(R, t)
-        # assert jnp.allclose(X @ X_inv, jnp.eye(6), atol=1e-5)
-        # X_inv_2 = make_spatial_R_t(R.T, -R.T @ t)
-        # assert jnp.allclose(X_inv, X_inv_2, atol=1e-5)
 
 
 @pytest.mark.parametrize("j", [Fixed, Revolute, Free])

@@ -1,7 +1,6 @@
 import timeit
 import argparse
 
-import jax
 import jax.numpy as jnp
 
 from dynamics import id, fd_differential, fd_composite
@@ -125,36 +124,11 @@ def run_and_print_dynamics(rbt):
     # Now do forward dynamics to compute the joint accelerations given the
     # joint positions, velocities, and forces
     a1 = fd_differential(rbt, q0, v0, tau, f_ext)
-    print("a0:", a0)
-    print("a1:", a1)
+    print("a:\t", a0)
+    print("a_fd:\t", a1)
 
-
-# from dataclasses import dataclass
-# from jax.tree_util import register_pytree_node
-
-# @dataclass
-# class Spatial:
-#     R: jnp.ndarray
-#     t: jnp.ndarray
-
-# register_pytree_node(
-#     Spatial,
-#     lambda x: ((x.R, x.t), None), # Flatten
-#     lambda _, xs: Spatial(*xs) # Unflatten
-# )
-
-# @partial(jax.jit, static_argnames=['v'])
-# @jax.jit
-# def test_fn(X, v):
-#     return X * v
 
 def timing_test(rbt):
-
-    # T = SpatialTransform(jnp.eye(3), jnp.zeros(3))
-    # v = SpatialForceVector()
-    # test_fn(T, v)
-
-
     key_gen = prng_key_gen()
     q0 = make_q(rbt, next(key_gen))
     v0 = make_v(rbt, next(key_gen))
@@ -196,8 +170,6 @@ def simulate_gravity(rbt):
         # fd_composite(rbt, q, v, tau, f_ext)
         print("fd_differential:", a, "\n\n")
         q, v = euler_step(rbt, q, v, a, 0.01)
-        # Friction so it doesn't go crazy
-        # v = v * 0.99
 
 
 ################################################################################
