@@ -6,9 +6,10 @@ from joint import joint_transform
 from transforms import SpatialTransform
 
 
-start = meshcat.Visualizer
+star_visualizer = meshcat.Visualizer
 
-def add_rbt(rbt: RigidBodyTree, draw_joints=True, draw_bodies=True):
+
+def add_rbt(vis, rbt: RigidBodyTree, draw_joints=True, draw_bodies=True):
     """Add a rigid body tree to the visualizer"""
     for body in rbt.bodies:
         if draw_joints:
@@ -30,7 +31,7 @@ def add_rbt(rbt: RigidBodyTree, draw_joints=True, draw_bodies=True):
             if "offset" in geom:
                 vis[body.name][str(i)].set_transform(np.array(geom["offset"], dtype=float))
 
-def draw_rbt(rbt: RigidBodyTree, q):
+def draw_rbt(vis, rbt: RigidBodyTree, q):
     body_poses = []
     for body in rbt.bodies:
         q_joint = seg_q(body, q)

@@ -12,7 +12,7 @@ from joint import Revolute, Fixed, Free
 from misc_math import prng_key_gen
 from rbt import RigidBodyTree, Body, make_q, make_v
 from transforms import SpatialTransform, SpatialForceVector, x_rotation, y_rotation
-import visualize as vis
+from visualize import star_visualizer, add_rbt, draw_rbt
 
 
 ################################################################################
@@ -179,22 +179,25 @@ def timing_test(rbt):
 
 def simulate_gravity(rbt):
     """Simulates the dynamics of a rigid body tree under gravity."""
-    vis.start()
-    vis.add_rbt(rbt, draw_bodies=False)
+    vis = star_visualizer()
+    add_rbt(vis, rbt)
 
     q = make_q(rbt)
     v = make_v(rbt)
     tau = make_v(rbt)
-    f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,-9.81])) for _ in rbt.bodies]
+    f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,0])) for _ in rbt.bodies]
 
-    q = jnp.ones_like(q)
+    v = v.at[:3].set(jnp.array([0, 5, 1e-6]))
+    # q = jnp.ones_like(q)
 
     while True:
-        vis.draw_rbt(rbt, q)
+        draw_rbt(vis, rbt, q)
         a = fd_differential(rbt, q, v, tau, f_ext)
-        fd_composite(rbt, q, v, tau, f_ext)
+        # fd_composite(rbt, q, v, tau, f_ext)
         print("fd_differential:", a, "\n\n")
         q, v = euler_step(rbt, q, v, a, 0.01)
+        # Friction so it doesn't go crazy
+        # v = v * 0.99
 
 
 ################################################################################

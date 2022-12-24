@@ -4,6 +4,13 @@ This is a JAX implementation of rigid body dynamics algorithms. The goal is to p
 
 [Here is a link](https://bcourses.berkeley.edu/files/70847609/download?download_frd=1) to a free PDF of the book. This [jupyter notebook](featherstone_notes.ipynb) contains my notes on the book.
 
+### Setup
+
+```
+pip install jax jaxlib meshcat
+```
+
+
 ## Why JAX
 
 I chose to use JAX because it's very similar to numpy, but it enables jitting and automatic differentiation.
@@ -24,8 +31,12 @@ $ python run.py --model=arm5 --experiment=timeit
     FD: 0.025 ms
 ```
 
-### Setup
+## Some sim examples
 
-```
-pip install jax jaxlib meshcat
-```
+A simple pendulum: `python run.py --model=pendulum --experiment=sim`
+
+![pendulum](media/pendulum_sim.mov)
+
+A box exhitting the [tennis racket theorem](https://en.wikipedia.org/wiki/Tennis_racket_theorem): `python run.py --model=box --experiment=sim`
+
+![box](media/box_rotation_sim.mov)
