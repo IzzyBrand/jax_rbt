@@ -35,8 +35,8 @@ $ python run.py --model=arm5 --experiment=timeit
 
 A simple pendulum: `python run.py --model=pendulum --experiment=sim`
 
-![pendulum](media/pendulum_sim.mov)
+![pendulum](media/pendulum_sim.gif)
 
 A box exhitting the [tennis racket theorem](https://en.wikipedia.org/wiki/Tennis_racket_theorem): `python run.py --model=box --experiment=sim`
 
-![box](media/box_rotation_sim.mov)
+![box](media/box_rotation_sim.gif)
