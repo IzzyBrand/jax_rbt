@@ -1,7 +1,12 @@
 from __future__ import annotations
+from collections import namedtuple
+
+
+
 
 import jax
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
 import numpy as np
 
 ###############################################################################
@@ -15,6 +20,9 @@ def smv_cross_smv(v1: jnp.ndarray, v2: jnp.ndarray):
     return jnp.block([[SO3_hat(w), jnp.zeros((3, 3))],
                       [SO3_hat(v), SO3_hat(w)]]) @ v2
 
+# The following classes are not used currently, but were useful to sanity
+# check how Featherstone's spatial algebra works.
+@register_pytree_node_class
 class SpatialMotionVector:
     def __init__(self, vec=None):
         self.vec = vec if vec is not None else jnp.zeros(6)
@@ -42,6 +50,14 @@ class SpatialMotionVector:
     def __str__(self):
         return str(self.vec)
 
+    def tree_flatten(self):
+        return (self.vec,), None
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(children[0])
+
+@register_pytree_node_class
 class SpatialForceVector:
     def __init__(self, vec=None):
         self.vec = vec if vec is not None else jnp.zeros(6)
@@ -62,6 +78,14 @@ class SpatialForceVector:
     def __str__(self):
         return str(self.vec)
 
+    def tree_flatten(self):
+        return (self.vec,), None
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(children[0])
+
+@register_pytree_node_class
 class SpatialTransform:
     """A spatial transform is a 6x6 matrix that transforms spatial vectors.
 
@@ -132,6 +156,13 @@ class SpatialTransform:
         return jnp.block([[self.R, self.t[:, None]],
                           [jnp.zeros((1, 3)), 1]])
 
+    def tree_flatten(self):
+        return (self.mat, self.R, self.t), None
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(children[1], children[2])
+
 # The following functions are not used currently, but were useful to sanity
 # check how Featherstone's spatial algebra works.
 
@@ -159,6 +190,48 @@ class SpatialTransform:
 #     r = -R.T @ t
 #     return inv_spatial_E_r(R, r)
 
+# SpatialTransform = namedtuple("SpatialTransform", ["X", "R", "t"])
+
+# def X_from_R_t(R, t):
+#     # See Feathersteone (2.24)
+#     # ┌                  ┐
+#     # │ E              0 │
+#     # │ -E@SO3_hat(r)  E │
+#     # └                  ┘
+#     # where R = E and r = -E.T @ t
+#     r = -R.T @ t
+#     X = jnp.block([[R, jnp.zeros((3, 3))],
+#                    [-R @ SO3_hat(r), R]])
+
+#     return SpatialTransform(X, R, t)
+
+# def X_app_X(X1, X2):
+#     pass
+
+# def X_app_m(X, m):
+#     return X.X @ m
+
+# def X_app_f(X, f):
+#     return X_inv(X).X.T @ f
+
+# def X_app_I(X, I):
+#     X_inv = X_inv(X).X
+#     return X_inv.T @ I @ X_inv
+
+# def X_inv(X):
+#     return X_from_R_t(X.R.T, -X.R.T @ X.t)
+
+# def X_inv_X(X1, X2):
+#     pass
+
+# def X_inv_m(X, m):
+#     pass
+
+# def X_inv_f(X, f):
+#     pass
+
+# def X_inv_I(X, I):
+#     pass
 
 ###############################################################################
 # SO3 lie group (rotation matrices)

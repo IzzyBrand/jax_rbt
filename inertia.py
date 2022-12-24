@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
 
 from transforms import (
     SpatialMotionVector,
@@ -10,6 +11,7 @@ from transforms import (
     mat_from_euler,
 )
 
+@register_pytree_node_class
 class SpatialInertiaTensor:
     def __init__(self, mat=jnp.zeros((6, 6))):
         """Construct a spatial inertia tensor.
@@ -44,6 +46,13 @@ class SpatialInertiaTensor:
         # Featherstone (2.66)
         X_inv = X.inv().mat
         return SpatialInertiaTensor(X_inv.T @ self.mat @ X_inv)
+
+    def tree_flatten(self):
+        return (self.mat,), None
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(*children)
 
     # def __add__(self, other):
     #     # TODO: implement addition of spatial inertia tensors

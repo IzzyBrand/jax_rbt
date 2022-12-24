@@ -1,5 +1,5 @@
-from functools import partial
 import timeit
+import argparse
 
 import jax
 import jax.numpy as jnp
@@ -128,28 +128,53 @@ def run_and_print_dynamics(rbt):
     print("a0:", a0)
     print("a1:", a1)
 
-@partial(jax.jit, static_argnames=['v'])
-def test_fn(T, v):
-    R, t = T
-    return SpatialTransform(R, t) * v
+
+# from dataclasses import dataclass
+# from jax.tree_util import register_pytree_node
+
+# @dataclass
+# class Spatial:
+#     R: jnp.ndarray
+#     t: jnp.ndarray
+
+# register_pytree_node(
+#     Spatial,
+#     lambda x: ((x.R, x.t), None), # Flatten
+#     lambda _, xs: Spatial(*xs) # Unflatten
+# )
+
+# @partial(jax.jit, static_argnames=['v'])
+# @jax.jit
+# def test_fn(X, v):
+#     return X * v
 
 def timing_test(rbt):
 
-    T = (jnp.eye(3), jnp.zeros(3))
-    v = SpatialForceVector()
-    test_fn(T, v)
+    # T = SpatialTransform(jnp.eye(3), jnp.zeros(3))
+    # v = SpatialForceVector()
+    # test_fn(T, v)
 
 
-    # key_gen = prng_key_gen()
-    # q0 = make_q(rbt, next(key_gen))
-    # v0 = make_v(rbt, next(key_gen))
-    # a0 = make_v(rbt, next(key_gen))
+    key_gen = prng_key_gen()
+    q0 = make_q(rbt, next(key_gen))
+    v0 = make_v(rbt, next(key_gen))
+    a0 = make_v(rbt, next(key_gen))
+    tau = make_v(rbt, next(key_gen))
+    f_ext = [SpatialForceVector() for _ in rbt.bodies]
 
-    # fn = lambda: fk(rbt, q0, v0, a0)
-    # n = 10
-    # r = 10
-    # times = timeit.repeat(fn, number=n, repeat=r)
-    # print(f"Best mean: {min(times) / n}")
+    fn = lambda: fk(rbt, q0, v0, a0)
+    n = 20
+    r = 20
+    times = timeit.repeat(fn, number=n, repeat=r)
+    print(f"FK: {min(times) / n * 1000:.3f} ms")
+
+    fn = lambda: id(rbt, q0, v0, a0, f_ext)
+    times = timeit.repeat(fn, number=n, repeat=r)
+    print(f"ID: {min(times) / n * 1000:.3f} ms")
+
+    fn = lambda: fd_differential(rbt, q0, v0, tau, f_ext)
+    times = timeit.repeat(fn, number=n, repeat=r)
+    print(f"FD: {min(times) / n * 1000:.3f} ms")
 
 
 def simulate_gravity(rbt):
@@ -178,10 +203,25 @@ def simulate_gravity(rbt):
 
 if __name__ == "__main__":
     jnp.set_printoptions(precision=6, suppress=True)
-    rbt = make_simple_arm(5)
-    # rbt = make_box(jnp.array([0.05, 0.2, 0.3]), 1.0)
-    # rbt = make_pendulum(0.4, 1.0)
 
-    # run_and_print_dynamics(rbt)
-    timing_test(rbt)
-    # simulate_gravity(rbt)
+    models = {
+        "arm5": make_simple_arm(5),
+        "box": make_box(jnp.array([0.05, 0.2, 0.3]), 1.0),
+        "pendulum": make_pendulum(0.4, 1.0),
+    }
+
+    experiments = {
+        "dynamics": run_and_print_dynamics,
+        "timeit": timing_test,
+        "sim": simulate_gravity,
+    }
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, default="arm5", choices=models.keys())
+    parser.add_argument("--experiment", type=str, default="sim", choices=experiments.keys())
+    args = parser.parse_args()
+
+    # Choose the model
+    rbt = models[args.model]
+    # Run the experiment
+    experiments[args.experiment](rbt)

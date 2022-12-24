@@ -1,3 +1,5 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 from jax.nn import one_hot
@@ -14,6 +16,7 @@ from transforms import (
 )
 
 
+@partial(jax.jit, static_argnames=['rbt'])
 def id(rbt, q, v, a, f_ext) -> jnp.ndarray:
     """Inverse dynamics using the recursive Newton-Euler algorithm.
 
@@ -52,6 +55,7 @@ def id(rbt, q, v, a, f_ext) -> jnp.ndarray:
     return jnp.concatenate(taus)
 
 
+@partial(jax.jit, static_argnames=['rbt'])
 def fd_differential(rbt, q, v, tau, f_ext):
     """Forward dynamics using the differential algorithm.
     See Featherstone section 6.1"""
