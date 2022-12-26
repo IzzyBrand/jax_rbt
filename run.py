@@ -124,8 +124,10 @@ def run_and_print_dynamics(rbt):
     # Now do forward dynamics to compute the joint accelerations given the
     # joint positions, velocities, and forces
     a1 = fd_differential(rbt, q0, v0, tau, f_ext)
+    a2 = fd_composite(rbt, q0, v0, tau, f_ext)
     print("a:\t", a0)
-    print("a_fd:\t", a1)
+    print("a_fd_diff:\t", a1)
+    print("a_fd_comp:\t", a2)
 
 
 def timing_test(rbt):
@@ -148,7 +150,11 @@ def timing_test(rbt):
 
     fn = lambda: fd_differential(rbt, q0, v0, tau, f_ext)
     times = timeit.repeat(fn, number=n, repeat=r)
-    print(f"FD: {min(times) / n * 1000:.3f} ms")
+    print(f"FD_diff: {min(times) / n * 1000:.3f} ms")
+
+    fn = lambda: fd_composite(rbt, q0, v0, tau, f_ext)
+    times = timeit.repeat(fn, number=n, repeat=r)
+    print(f"FD_comp: {min(times) / n * 1000:.3f} ms")
 
 
 def simulate_gravity(rbt):
@@ -186,7 +192,7 @@ if __name__ == "__main__":
     }
 
     experiments = {
-        "dynamics": run_and_print_dynamics,
+        "print": run_and_print_dynamics,
         "timeit": timing_test,
         "sim": simulate_gravity,
     }

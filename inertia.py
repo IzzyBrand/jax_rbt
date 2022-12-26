@@ -54,9 +54,11 @@ class SpatialInertiaTensor:
     def tree_unflatten(cls, aux_data, children):
         return cls(*children)
 
-    # def __add__(self, other):
-    #     # TODO: implement addition of spatial inertia tensors
-    #     return self
+    def __add__(self, other):
+        if isinstance(other, SpatialInertiaTensor):
+            return SpatialInertiaTensor(self.mat + other.mat)
+        else:
+            raise NotImplementedError
 
     # def offset(self, c: jnp.ndarray) -> jnp.ndarray:
     #     """Compute the spatial inertia tensor at a point offset from the the

@@ -55,7 +55,7 @@ def id(rbt, q, v, a, f_ext) -> jnp.ndarray:
     return jnp.concatenate(taus)
 
 
-@partial(jax.jit, static_argnames=['rbt'])
+# @partial(jax.jit, static_argnames=['rbt'])
 def fd_differential(rbt, q, v, tau, f_ext):
     """Forward dynamics using the differential algorithm.
     See Featherstone section 6.1"""
@@ -71,23 +71,55 @@ def fd_differential(rbt, q, v, tau, f_ext):
     H = jnp.stack([id_differential(alpha) for alpha in range(tau.shape[0])]).T
 
     # Solve H * qdd = tau - C for qdd Featherstone (6.1)
+    print("H\n", H)
     return jnp.linalg.solve(H, tau - C)
 
 
+# @partial(jax.jit, static_argnames=['rbt'])
 def fd_composite(rbt, q, v, tau, f_ext):
     """Forward dynamics using the composite rigid body algorithm.
     See Featherstone section 6.2"""
 
+    # Calculate the joint space bias force by computing the inverse dynamics
+    # with zero acceleration. Featherstone (6.2)
+    C = id(rbt, q, v, make_v(rbt), f_ext)
+
     # TODO(@ib): store the velocity dimension in the RigidBodyTree
-    nv = sum([b.joint.nv for b in rbt.bodies])
+    nv = v.shape[0]
     H = jnp.zeros((nv, nv))
 
-    # Init the composite inertia with the inertia of each body
+    # Init the composite inertia with the inertia of each body to be the inertia
+    # of the body itself. We will accumulate the composite inertia of each body
+    # in the next step.
     I_c = [b.inertia for b in rbt.bodies]
 
-    for body in rbt.bodies:
+    for i, body in enumerate(rbt.bodies):
+        # Add the composite inertia of this body to its parent's composite inertia
         if body.parent_idx != -1:
             X_parent_body = joint_transform(body.joint, seg_q(body, q))
-            I_c[body.parent_idx] += I_c[body.idx].transform(X_parent_body)
+            I_c[body.parent_idx] = I_c[body.parent_idx] + I_c[i].transform(X_parent_body)
 
-        F = I_c[body].mat @ body.joint.S
+    for body in reversed(rbt.bodies):
+        i = body.idx
+        # Project the composite inertia of this body into the joint space
+        F = I_c[i].mat @ body.joint.S
+
+        i_end = i + body.joint.nv
+        H = H.at[i:i_end,i:i_end].set(body.joint.S.T @ F)
+
+        j = i
+        # Iterate up the tree to the root, accumulating the composite inertia
+        while rbt.bodies[j].parent_idx != -1:
+            body_j = rbt.bodies[j]
+            X_parent_body = joint_transform(body_j.joint, seg_q(body_j, q))
+            F = X_parent_body * F
+            j = body_j.parent_idx
+            i_end = i + body.joint.nv
+            j_end = j + body_j.joint.nv
+            H = H.at[i:i_end, j:j_end].set(body.joint.S.T @ F)
+            H = H.at[j:j_end, i:i_end].set(H[i:i_end, j:j_end].T)
+
+    # Solve H * qdd = tau - C for qdd Featherstone (6.1)
+
+    print("H\n", H)
+    return jnp.linalg.solve(H, tau - C)
