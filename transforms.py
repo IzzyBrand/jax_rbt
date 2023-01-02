@@ -269,7 +269,7 @@ def SO3_vee(S: jnp.ndarray) -> jnp.ndarray:
     w = jnp.array([S[2, 1], S[0, 2], S[1, 0]])
     return w
 
-@jax.jit
+# @jax.jit
 def SO3_exp(w: jnp.ndarray) -> jnp.ndarray:
     # A Micro Lie Theory (Example 4)
     # Compute the magnitude of the rotation

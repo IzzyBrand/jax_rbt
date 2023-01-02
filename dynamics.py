@@ -55,7 +55,7 @@ def id(rbt, q, v, a, f_ext) -> jnp.ndarray:
     return jnp.concatenate(list(reversed(taus)))
 
 
-# @partial(jax.jit, static_argnames=['rbt'])
+@partial(jax.jit, static_argnames=['rbt'])
 def fd_differential(rbt, q, v, tau, f_ext):
     """Forward dynamics using the differential algorithm.
     See Featherstone section 6.1"""
@@ -74,7 +74,7 @@ def fd_differential(rbt, q, v, tau, f_ext):
     return jnp.linalg.solve(H, tau - C)
 
 
-# @partial(jax.jit, static_argnames=['rbt'])
+@partial(jax.jit, static_argnames=['rbt'])
 def fd_composite(rbt, q, v, tau, f_ext):
     """Forward dynamics using the composite rigid body algorithm.
     See Featherstone section 6.2"""

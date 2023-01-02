@@ -42,6 +42,7 @@ class RigidBodyTree:
         2. Set the root, parents and children of each body
         3. Re-order bodies list so children come after parents
         4. Set the idx, q_idx, v_idx fields
+        5. Save the shape of the q and v arrays
         """
         # Store a map from id to body
         self.id_to_body = {b.id: b for b in bodies}
@@ -85,6 +86,9 @@ class RigidBodyTree:
 
         # Store the parent idxs array for use in the forward kinematics
         self.p_idxs = jnp.array([b.p_idx for b in self.bodies])
+
+        self.nq = q_idx
+        self.nv = v_idx
 
 
 # Define helper functions to make generalized position or velocity vectors for a

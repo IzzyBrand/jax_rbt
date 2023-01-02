@@ -4,7 +4,7 @@ import jax.numpy as jnp
 
 from dynamics import id, fd_differential, fd_composite
 from inertia import inertia_of_cylinder, inertia_of_box, SpatialInertiaTensor
-from integrate import euler_step
+from integrate import euler_step, rbt_rk4
 from kinematics import fk
 from joint import Revolute, Fixed, Free
 from misc_math import prng_key_gen, timer, stats
@@ -176,17 +176,14 @@ def simulate_gravity(rbt):
     q = make_q(rbt)
     v = make_v(rbt)
     tau = make_v(rbt)
-    f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,0])) for _ in rbt.bodies]
+    f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,-9.81])) for _ in rbt.bodies]
 
     # v = v.at[:3].set(jnp.array([0, 5, 1e-6]))
     q = jnp.ones_like(q)
 
     while True:
         draw_rbt(vis, rbt, q)
-        a = fd_differential(rbt, q, v, tau, f_ext)
-        # a = fd_composite(rbt, q, v, tau, f_ext)
-        print("fd_differential:", a, "\n\n")
-        q, v = euler_step(rbt, q, v, a, 0.01)
+        q, v = rbt_rk4(rbt, q, v, tau, f_ext, 0.01)
 
 
 ################################################################################
