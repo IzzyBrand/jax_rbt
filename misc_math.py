@@ -1,3 +1,5 @@
+import time
+
 import jax
 import jax.numpy as jnp
 
@@ -21,21 +23,21 @@ def normalize(v):
     return v / jnp.linalg.norm(v)
 
 ###############################################################################
-# Inertial properties
+# Timing
 ###############################################################################
 
-def inertia_of_cylinder(m: float, r: float, h: float) -> jnp.ndarray:
-    Ixx = Iyy = (1 / 12) * m * (3 * r ** 2 + h ** 2)
-    Izz = (1 / 2) * m * r ** 2
-    return jnp.array([[Ixx, 0, 0], [0, Iyy, 0], [0, 0, Izz]])
+def timer(fn):
+    start = time.time()
+    fn()
+    stop = time.time()
+    return stop - start
 
-def inertia_of_box(m:float, s: jnp.ndarray) -> jnp.ndarray:
-    Ixx = (1 / 12) * m * (s[1] ** 2 + s[2] ** 2)
-    Iyy = (1 / 12) * m * (s[0] ** 2 + s[2] ** 2)
-    Izz = (1 / 12) * m * (s[0] ** 2 + s[1] ** 2)
-    return jnp.array([[Ixx, 0, 0], [0, Iyy, 0], [0, 0, Izz]])
-
-def inertia_of_sphere(m: float, r: float) -> jnp.ndarray:
-    Ixx = Iyy = Izz = (2 / 5) * m * r ** 2
-    return jnp.array([[Ixx, 0, 0], [0, Iyy, 0], [0, 0, Izz]])
-
+def stats(v):
+    v = jnp.array(v)
+    return {
+        "min": jnp.min(v),
+        "max": jnp.max(v),
+        "mean": jnp.mean(v),
+        "25th": jnp.percentile(v, 25),
+        "75th": jnp.percentile(v, 75),
+    }

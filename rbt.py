@@ -76,7 +76,7 @@ class RigidBodyTree:
         v_idx = 0
         for body in self.bodies:
             body.idx = idx
-            body.parent_idx = body.parent.idx if body.parent else -1
+            body.p_idx = body.parent.idx if body.parent else -1
             body.q_idx = q_idx
             body.v_idx = v_idx
             idx += 1
@@ -84,7 +84,7 @@ class RigidBodyTree:
             v_idx += body.joint.nv
 
         # Store the parent idxs array for use in the forward kinematics
-        self.parent_idxs = jnp.array([b.parent_idx for b in self.bodies])
+        self.p_idxs = jnp.array([b.p_idx for b in self.bodies])
 
 
 # Define helper functions to make generalized position or velocity vectors for a
@@ -146,3 +146,11 @@ def seg_q(body: Body, q: jnp.ndarray) -> jnp.ndarray:
 def seg_v(body: Body, v: jnp.ndarray) -> jnp.ndarray:
     """Get the segment of v corresponding to the body's joint"""
     return v[body.v_idx:body.v_idx + body.joint.nv]
+
+# def set_block_v(body_i: Body, body_j: Body, M: jnp.ndarray, m_ij: jnp.ndarray) -> jnp.ndarray:
+#     """Set the block of a matrix corresponding to bodies i and j"""
+#     i_start = body_i.v_idx
+#     i_end = i_start + body_i.joint.nv
+#     j_start = body_j.v_idx
+#     j_end = j_start + body_j.joint.nv
+#     return M.at[i_start:i_end, j_start:j_end].set(m_ij)

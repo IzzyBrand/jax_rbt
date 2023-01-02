@@ -48,17 +48,17 @@ def fk(rbt: RigidBodyTree, q: jnp.ndarray, v: jnp.ndarray, a: jnp.ndarray):
         a_j = SpatialMotionVector(body.joint.S @ a_i)
 
         # Get the pose of the parent body
-        X_p = body_poses[body.parent_idx + 1]
+        X_p = body_poses[body.p_idx + 1]
         # Compute the pose of the body
         X_i = X_p * X_j
 
         # Get the velocity of the parent in the parent frame
-        v_p = body_velocities[body.parent_idx + 1]
+        v_p = body_velocities[body.p_idx + 1]
         # Compute the velocity of the body in the body frame (Featherstone 5.14)
         v_i = X_j.inv() * v_p + v_j
 
         # Get the acceleration of the parent
-        a_p = body_accelerations[body.parent_idx + 1]
+        a_p = body_accelerations[body.p_idx + 1]
         # Compute the acceleration of the body in the body frame (Featherstone 5.15)
         # Note that the joint motion subspace is constant, so we can omit the
         # term involving its time derivative.
@@ -114,4 +114,4 @@ def fk(rbt: RigidBodyTree, q: jnp.ndarray, v: jnp.ndarray, a: jnp.ndarray):
 #     Ajs = [b.joint.S @ seg_v(b, a) for b in rbt.bodies]
 
 #     # Compose the joint terms
-#     return _compose_joint_terms(rbt.parent_idxs, Xjs, Vjs, Ajs)
+#     return _compose_joint_terms(rbt.p_idxs, Xjs, Vjs, Ajs)

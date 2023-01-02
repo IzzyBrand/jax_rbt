@@ -37,7 +37,7 @@ def draw_rbt(vis, rbt: RigidBodyTree, q):
     for body in rbt.bodies:
         q_joint = seg_q(body, q)
         X_joint = joint_transform(body.joint, q_joint)
-        X_parent = body_poses[body.parent_idx] if body.parent else SpatialTransform()
+        X_parent = body_poses[body.p_idx] if body.parent else SpatialTransform()
         X_body = X_parent * X_joint
         body_poses.append(X_body)
         vis[body.name].set_transform(np.array(X_body.homogenous(), dtype=float))

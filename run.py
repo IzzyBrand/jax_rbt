@@ -1,4 +1,3 @@
-import timeit
 import argparse
 
 import jax.numpy as jnp
@@ -8,7 +7,7 @@ from inertia import inertia_of_cylinder, inertia_of_box, SpatialInertiaTensor
 from integrate import euler_step
 from kinematics import fk
 from joint import Revolute, Fixed, Free
-from misc_math import prng_key_gen
+from misc_math import prng_key_gen, timer, stats
 from rbt import RigidBodyTree, Body, make_q, make_v
 from transforms import SpatialTransform, SpatialForceVector, x_rotation, y_rotation
 from visualize import star_visualizer, add_rbt, draw_rbt
@@ -89,6 +88,13 @@ def make_pendulum(length, mass):
     end.visuals = [{"type": "sphere", "radius": 0.1 * length}]
     return RigidBodyTree([rod, end])
 
+def make_free_arm(*args):
+    """Make an arm with a free joint at its base."""
+    rbt = make_simple_arm(*args)
+    old_joint = rbt.root.joint
+    rbt.root.joint = Free(old_joint.T_in)
+    return RigidBodyTree(rbt.bodies)
+
 
 ################################################################################
 # Various Experiments
@@ -131,30 +137,35 @@ def run_and_print_dynamics(rbt):
 
 
 def timing_test(rbt):
-    key_gen = prng_key_gen()
-    q0 = make_q(rbt, next(key_gen))
-    v0 = make_v(rbt, next(key_gen))
-    a0 = make_v(rbt, next(key_gen))
-    tau = make_v(rbt, next(key_gen))
     f_ext = [SpatialForceVector() for _ in rbt.bodies]
 
-    fn = lambda: fk(rbt, q0, v0, a0)
-    n = 20
-    r = 20
-    times = timeit.repeat(fn, number=n, repeat=r)
-    print(f"FK: {min(times) / n * 1000:.3f} ms")
+    key_gen = prng_key_gen()
 
-    fn = lambda: id(rbt, q0, v0, a0, f_ext)
-    times = timeit.repeat(fn, number=n, repeat=r)
-    print(f"ID: {min(times) / n * 1000:.3f} ms")
+    def rand_args():
+        q = make_q(rbt, next(key_gen))
+        v = make_v(rbt, next(key_gen))
+        a = make_v(rbt, next(key_gen))
+        return q, v, a
 
-    fn = lambda: fd_differential(rbt, q0, v0, tau, f_ext)
-    times = timeit.repeat(fn, number=n, repeat=r)
-    print(f"FD_diff: {min(times) / n * 1000:.3f} ms")
 
-    fn = lambda: fd_composite(rbt, q0, v0, tau, f_ext)
-    times = timeit.repeat(fn, number=n, repeat=r)
-    print(f"FD_comp: {min(times) / n * 1000:.3f} ms")
+    r = 100
+    n = 10
+
+    # Get the amount of time it takes to get the args
+    t_setup = sum(sorted([timer(rand_args) for _ in range(100)])[:n]) / n
+
+    fns = {
+        "FD_comp": lambda: fd_composite(rbt, *rand_args(), f_ext),
+        "FD_diff": lambda: fd_differential(rbt, *rand_args(), f_ext),
+        "ID": lambda: id(rbt, *rand_args(), f_ext),
+        "FK": lambda: fk(rbt, *rand_args()),
+    }
+
+    for name, fn in fns.items():
+        print(name)
+        times = [timer(fn) - t_setup for _ in range(r)]
+        for k, v in stats(times).items():
+            print(f"\t{k}:\t{v * 1000 :.3f} ms")
 
 
 def simulate_gravity(rbt):
@@ -167,13 +178,13 @@ def simulate_gravity(rbt):
     tau = make_v(rbt)
     f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,0])) for _ in rbt.bodies]
 
-    v = v.at[:3].set(jnp.array([0, 5, 1e-6]))
-    # q = jnp.ones_like(q)
+    # v = v.at[:3].set(jnp.array([0, 5, 1e-6]))
+    q = jnp.ones_like(q)
 
     while True:
         draw_rbt(vis, rbt, q)
         a = fd_differential(rbt, q, v, tau, f_ext)
-        # fd_composite(rbt, q, v, tau, f_ext)
+        # a = fd_composite(rbt, q, v, tau, f_ext)
         print("fd_differential:", a, "\n\n")
         q, v = euler_step(rbt, q, v, a, 0.01)
 
@@ -183,10 +194,11 @@ def simulate_gravity(rbt):
 ################################################################################
 
 if __name__ == "__main__":
-    jnp.set_printoptions(precision=6, suppress=True)
+    jnp.set_printoptions(precision=4, suppress=True)
 
     models = {
         "arm5": make_simple_arm(5),
+        "freearm1": make_free_arm(1),
         "box": make_box(jnp.array([0.05, 0.2, 0.3]), 1.0),
         "pendulum": make_pendulum(0.4, 1.0),
     }
