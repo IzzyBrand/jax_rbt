@@ -33,7 +33,9 @@ def fk(rbt: RigidBodyTree, q: jnp.ndarray, v: jnp.ndarray, a: jnp.ndarray):
 
     body_poses = [SpatialTransform()]
     body_velocities = [SpatialMotionVector()]
-    body_accelerations = [SpatialMotionVector()]
+    # We can emulate gravity by attaching the base to an accelerating frame
+    # Featherstone (5.15)
+    body_accelerations = [SpatialMotionVector(jnp.array([0, 0, 0, 0, 0, 9.81]))]
 
     for body in rbt.bodies:
         # Get the segment of q, v, and a corresponding to the body's joint

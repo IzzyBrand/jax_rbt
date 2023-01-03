@@ -18,7 +18,7 @@ from visualize import star_visualizer, add_rbt, draw_rbt
 ################################################################################
 
 def make_simple_arm(num_joints: int,
-                    joint_angle: float = jnp.pi / 6,
+                    joint_angle: float = jnp.pi / 4,
                     link_length: float = 0.1,
                     body_mass: float = 1.0):
     """Make a simple arm with num_joints revolute joints"""
@@ -176,7 +176,7 @@ def simulate_gravity(rbt):
     q = make_q(rbt)
     v = make_v(rbt)
     tau = make_v(rbt)
-    f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,-9.81])) for _ in rbt.bodies]
+    f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,0])) for _ in rbt.bodies]
 
     # v = v.at[:3].set(jnp.array([0, 5, 1e-6]))
     q = jnp.ones_like(q)
