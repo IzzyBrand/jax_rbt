@@ -7,7 +7,7 @@ from joint import *
 from kinematics import *
 from misc_math import *
 from rbt import *
-from run import make_pendulum
+from run import *
 from transforms import *
 
 
@@ -135,3 +135,37 @@ def test_id(l, m):
     f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,-1])) for _ in rbt.bodies]
     tau = id(rbt, q, v, a, f_ext)
     assert jnp.allclose(tau, jnp.array([l + m * l**2]), atol=1e-6)
+
+
+@pytest.mark.parametrize("fd", [fd_composite, fd_differential])
+@pytest.mark.parametrize("rbt", [
+    make_pendulum(1.0, 1.0),
+    make_box(jnp.array([0.05, 0.2, 0.3]), 1.0),
+    make_simple_arm(4),
+    make_free_arm(2),
+])
+def test_fd_id(fd, rbt):
+    """Test that the forward dynamics and inverse dynamics are consistent"""
+
+    rbt = make_simple_arm(2)
+    key_gen = prng_key_gen()
+
+    for _ in range(10):
+        # Get a random state, and input torque
+        q = make_q(rbt, next(key_gen))
+        v = make_v(rbt, next(key_gen))
+        tau = make_v(rbt, next(key_gen))
+        f_ext = [SpatialForceVector(jax.random.normal(next(key_gen), (6,))) for _ in rbt.bodies]
+
+        # Compute the forward dynamics
+        a = fd(rbt, q, v, tau, f_ext)
+        # Compute the inverse dynamics
+        tau2 = id(rbt, q, v, a, f_ext)
+        # Check that the inverse dynamics matches the input torque
+        assert jnp.allclose(tau, tau2, atol=5e-4)
+
+        # Now do the same in the opposite order
+        a = make_v(rbt, next(key_gen))
+        tau = id(rbt, q, v, a, f_ext)
+        a2 = fd(rbt, q, v, tau, f_ext)
+        assert jnp.allclose(a, a2, atol=5e-4)

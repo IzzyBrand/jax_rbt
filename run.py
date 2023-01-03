@@ -4,7 +4,7 @@ import jax.numpy as jnp
 
 from dynamics import id, fd_differential, fd_composite
 from inertia import inertia_of_cylinder, inertia_of_box, SpatialInertiaTensor
-from integrate import euler_step, rbt_rk4
+from integrate import rbt_rk4
 from kinematics import fk
 from joint import Revolute, Fixed, Free
 from misc_math import prng_key_gen, timer, stats
