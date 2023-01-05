@@ -17,6 +17,8 @@ class SpatialInertiaTensor:
         """Construct a spatial inertia tensor.
         """
         self.mat = mat
+        # The bottom right 3x3 is eye(3) * mass
+        self.mass = jnp.mean(jnp.diag(mat[3:, 3:]))
 
     @staticmethod
     def from_I_m(I: jnp.ndarray, m: float) -> SpatialInertiaTensor:
@@ -95,7 +97,7 @@ def inertia_of_sphere(m: float, r: float) -> jnp.ndarray:
 if __name__ == "__main__":
     mass = 1.0
     I = inertia_of_box(mass, jnp.array([1, 2, 3]))
-    inertia = SpatialInertiaTensor(I, mass)
+    inertia = SpatialInertiaTensor.from_I_m(I, mass)
 
     # Check translation
     # offset = jnp.array([1,2,3])
@@ -108,5 +110,5 @@ if __name__ == "__main__":
     R = SO3_from_euler(jnp.array([1, 2, 3]))
     X = SpatialTransform(R, jnp.zeros(3))
     assert jnp.allclose(inertia.transform(X).mat,
-                        SpatialInertiaTensor(R @ I @ R.T, mass).mat,
+                        SpatialInertiaTensor.from_I_m(R @ I @ R.T, mass).mat,
                         atol=1e-6)

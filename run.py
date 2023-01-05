@@ -2,7 +2,7 @@ import argparse
 
 import jax.numpy as jnp
 
-from dynamics import id, fd_differential, fd_composite
+from dynamics import id, fd_differential, fd_composite, energy
 from inertia import inertia_of_cylinder, inertia_of_box, SpatialInertiaTensor
 from integrate import rbt_rk4
 from kinematics import fk
@@ -181,9 +181,14 @@ def simulate_gravity(rbt):
     # v = v.at[:3].set(jnp.array([0, 5, 1e-6]))
     q = jnp.ones_like(q)
 
+    initial_energy = energy(rbt, q, v)
     while True:
         draw_rbt(vis, rbt, q)
         q, v = rbt_rk4(rbt, q, v, tau, f_ext, 0.01)
+        new_energy = energy(rbt, q, v)
+        v = v * jnp.sqrt(initial_energy / new_energy)
+        print(energy(rbt, q, v))
+        initial_energy *= 0.999
 
 
 ################################################################################
