@@ -4,9 +4,7 @@ import jax
 import jax.numpy as jnp
 
 from manifold import rbt_manifold_dyn
-from rbt import RigidBodyTree, seg_q, seg_v
-from joint import Joint, Fixed, Revolute, Free
-from transforms import SO3_exp, mat_from_quat, quat_from_mat
+from rbt import RigidBodyTree
 from dynamics import fd_composite
 
 # Euler method

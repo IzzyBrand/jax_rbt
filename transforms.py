@@ -98,7 +98,7 @@ class SpatialTransform:
             # │ E              0 │
             # │ -E@SO3_hat(r)  E │
             # └                  ┘
-            # where R = E and r = -E.T @ t
+            # where E = R and r = -E.T @ t
             r = -self.R.T @ self.t
             self.mat = jnp.block([[self.R, jnp.zeros((3, 3))],
                                   [-self.R @ SO3_hat(r), self.R]])
@@ -281,6 +281,16 @@ def SO3_exp(w: jnp.ndarray) -> jnp.ndarray:
       + S * np.sin(θ) / θ\
       + S @ S * (1.0 - np.cos(θ)) / θ**2
     return R
+
+@jax.jit
+def S3_exp(w):
+    # A Micro Lie Theory (Example 5)
+    # [1] Example 5
+    θ = jnp.linalg.norm(w)
+    # Handle the case where θ is zero
+    s = jnp.where(θ, jnp.sin(0.5 * θ) / θ, 1)
+    c = jnp.cos(0.5 * θ)
+    return jnp.concatenate([jnp.array([c]), s * w])
 
 ###############################################################################
 # SE3 lie group (homogenous transforms)

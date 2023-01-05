@@ -19,7 +19,7 @@ from transforms import (
 def energy(rbt, q, v) -> float:
     """Compute the total kinetic and potential energy of the system"""
     # Compute the position, velocity, and acceleration of each body
-    body_poses, body_vels, body_accs = fk(rbt, q, v, jnp.zeros_like(v))
+    body_poses, body_vels, _ = fk(rbt, q, v, jnp.zeros_like(v))
 
     # Compute the kinetic energy of each body
     kinetic = 0
@@ -28,6 +28,7 @@ def energy(rbt, q, v) -> float:
         kinetic += 0.5 * V_i.vec.T @ body.inertia.mat @ V_i.vec
         potential += 9.81 * body.inertia.mass * X_i.t[2]
 
+    print(f"Kinetic: {kinetic}, Potential: {potential}")
     return kinetic + potential
 
 @partial(jax.jit, static_argnames=['rbt'])

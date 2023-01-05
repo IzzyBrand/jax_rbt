@@ -34,9 +34,7 @@ class S3(Manifold):
     @staticmethod
     def exp(v):
         """Exponential map for quaternions"""
-        # TODO: implement exponential map for quaternions directly, rather than
-        # converting to a rotation matrix first
-        return S3(quat_from_mat(SO3_exp(v)))
+        return S3(S3_exp(v))
 
 
 class Euclidean(Manifold):

@@ -147,7 +147,6 @@ def test_id(l, m):
 def test_fd_id(fd, rbt):
     """Test that the forward dynamics and inverse dynamics are consistent"""
 
-    rbt = make_simple_arm(2)
     key_gen = prng_key_gen()
 
     for _ in range(10):

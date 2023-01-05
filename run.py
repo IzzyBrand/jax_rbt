@@ -9,7 +9,7 @@ from kinematics import fk
 from joint import Revolute, Fixed, Free
 from misc_math import prng_key_gen, timer, stats
 from rbt import RigidBodyTree, Body, make_q, make_v
-from transforms import SpatialTransform, SpatialForceVector, x_rotation, y_rotation
+from transforms import SpatialTransform, SpatialForceVector, x_rotation, y_rotation, z_rotation
 from visualize import star_visualizer, add_rbt, draw_rbt
 
 
@@ -18,26 +18,27 @@ from visualize import star_visualizer, add_rbt, draw_rbt
 ################################################################################
 
 def make_simple_arm(num_joints: int,
-                    joint_angle: float = jnp.pi / 4,
+                    joint_angle: float = jnp.pi/4,
                     link_length: float = 0.1,
                     body_mass: float = 1.0):
     """Make a simple arm with num_joints revolute joints"""
     # Create the transform from each joint to the next: a translation along z
     # and a rotation about x
-    t_z = jnp.array([0, 0, link_length])
-    T_parent_to_child = SpatialTransform(x_rotation(joint_angle), t_z)
+    t_x = jnp.array([link_length, 0, 0])
+    T_parent_to_child = SpatialTransform(x_rotation(joint_angle), t_x)
 
     # Create the revolute joint used by all bodies
     joint = Revolute(T_parent_to_child)
 
     # The center of mass of each body is between the two joints
-    T_body_to_com = SpatialTransform(x_rotation(jnp.pi/2), 0.5 * t_z)
+    T_body_to_com = SpatialTransform(z_rotation(jnp.pi/2), 0.5 * t_x)
 
     # Define the inertia assuming each body is a uniform density cylinder, twice
     # as long as it is wide
     radius = 0.25 * link_length
-    inertia = SpatialInertiaTensor.from_I_m(inertia_of_cylinder(
-        body_mass, radius, link_length), body_mass).transform(T_body_to_com)
+    inertia = SpatialInertiaTensor.from_m(body_mass).transform(T_body_to_com)
+    # inertia = SpatialInertiaTensor.from_I_m(inertia_of_cylinder(
+    #     body_mass, radius, link_length), body_mass).transform(T_body_to_com)
 
     # Create the base body. The base joint is fixed, so it has no parent, and
     # does not require inertial properties.
@@ -179,16 +180,16 @@ def simulate_gravity(rbt):
     f_ext = [SpatialForceVector(jnp.array([0,0,0,0,0,0])) for _ in rbt.bodies]
 
     # v = v.at[:3].set(jnp.array([0, 5, 1e-6]))
-    q = jnp.ones_like(q)
+    # q = jnp.ones_like(q)
 
     initial_energy = energy(rbt, q, v)
     while True:
         draw_rbt(vis, rbt, q)
         q, v = rbt_rk4(rbt, q, v, tau, f_ext, 0.01)
-        new_energy = energy(rbt, q, v)
-        v = v * jnp.sqrt(initial_energy / new_energy)
+        v = v * .99
+        # v = v * jnp.sqrt(initial_energy / energy(rbt, q, v))
         print(energy(rbt, q, v))
-        initial_energy *= 0.999
+        # initial_energy *= 0.999
 
 
 ################################################################################
